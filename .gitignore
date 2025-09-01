@@ -1,0 +1,30 @@
+﻿# Python相關
+__pycache__/
+*.py[cod]
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+
+# Django相關
+*.log
+db.sqlite3
+/staticfiles/
+
+# 環境變數
+.env
+.env.dev
+.env.prod
+
+# 資料庫檔案
+mysql/
+*.db
+
+# IDE設定
+.vscode/
+.idea/
+
+# 作業系統
+.DS_Store
+Thumbs.db

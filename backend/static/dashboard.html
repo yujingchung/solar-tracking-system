@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>太陽能追日系統多案場監控</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f7fa;
+            color: #2d3748;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+        
+        .header .subtitle {
+            color: #718096;
+            font-size: 1.1em;
+        }
+        
+        .nav-tabs {
+            display: flex;
+            background: white;
+            border-radius: 8px;
+            padding: 4px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+        
+        .nav-tab {
+            flex: 1;
+            padding: 12px 16px;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 500;
+            color: #718096;
+            transition: all 0.2s;
+            white-space: nowrap;
+            min-width: 120px;
+        }
+        
+        .nav-tab.active {
+            background: #4299e1;
+            color: white;
+        }
+        
+        .nav-tab:hover:not(.active) {
+            background: #edf2f7;
+            color: #4a5568;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .site-card {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid #e2e8f0;
+        }
+        
+        .site-card h3 {
+            font-size: 1.2em;
+            margin-bottom: 16px;
+            color: #2d3748;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .site-status {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-left: 8px;
+        }
+        
+        .site-status.online {
+            background: #48bb78;
+        }
+        
+        .site-status.offline {
+            background: #f56565;
+        }
+        
+        .site-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        
+        .site-stat {
+            text-align: center;
+        }
+        
+        .site-stat .label {
+            font-size: 0.8em;
+            color: #718096;
+            margin-bottom: 4px;
+        }
+        
+        .site-stat .value {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #2d3748;
+        }
+        
+        .site-stat .unit {
+            font-size: 0.8em;
+            color: #a0aec0;
+        }
+        
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid #e2e8f0;
+        }
+        
+        .card-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #2d3748;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+        }
+        
+        .stat-card {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            padding: 20px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .stat-card h3 {
+            font-size: 0.9em;
+            margin-bottom: 8px;
+            color: #718096;
+            font-weight: 500;
+        }
+        
+        .stat-card .value {
+            font-size: 2em;
+            font-weight: 700;
+            margin-bottom: 4px;
+            color: #2d3748;
+        }
+        
+        .stat-card .unit {
+            font-size: 0.85em;
+            color: #a0aec0;
+            font-weight: 500;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            background: #4299e1;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        
+        .btn:hover {
+            background: #3182ce;
+        }
+        
+        .btn.secondary {
+            background: #718096;
+        }
+        
+        .btn.secondary:hover {
+            background: #4a5568;
+        }
+        
+        .btn.small {
+            font-size: 0.8em;
+            padding: 6px 12px;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+        
+        .data-table th {
+            background: #edf2f7;
+            color: #4a5568;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.85em;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .data-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 0.9em;
+        }
+        
+        .data-table tr:hover {
+            background: #f7fafc;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 32px;
+            color: #718096;
+        }
+        
+        .error {
+            background: #fed7d7;
+            color: #742a2a;
+            padding: 16px;
+            border-radius: 4px;
+            margin: 12px 0;
+        }
+        
+        .refresh-control {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        
+        .refresh-control h4 {
+            margin-bottom: 10px;
+            color: #4a5568;
+            font-size: 1em;
+        }
+        
+        .refresh-status {
+            font-size: 0.85em;
+            color: #718096;
+            margin-top: 10px;
+        }
+        
+        .refresh-time {
+            text-align: center;
+            color: #a0aec0;
+            font-size: 0.85em;
+            margin-top: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .detail-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .overview-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-tabs {
+                flex-direction: column;
+            }
+            
+            .nav-tab {
+                min-width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>太陽能追日系統多案場監控</h1>
+            <div class="subtitle">即時監控所有案場的發電狀況與系統狀態</div>
+        </div>
+        
+        <!-- 導航標籤 -->
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="showTab('overview')">總覽</button>
+            <button class="nav-tab" onclick="showTab('test-system')">測試系統</button>
+            <button class="nav-tab" onclick="showTab('jintudi-traditional')">金土地公廟傳統</button>
+            <button class="nav-tab" onclick="showTab('jintudi-smart')">金土地公廟智能</button>
+            <button class="nav-tab" onclick="showTab('eng1-traditional')">工程一館傳統</button>
+            <button class="nav-tab" onclick="showTab('eng1-smart')">工程一館智能</button>
+        </div>
+        
+        <!-- 總覽頁面 -->
+        <div id="overview" class="tab-content active">
+            <div class="overview-grid" id="overviewGrid">
+                <div class="loading">載入案場資訊中...</div>
+            </div>
+            
+            <div class="card">
+                <h2 class="card-title">系統總覽</h2>
+                <div class="controls">
+                    <button class="btn" onclick="refreshOverview()">刷新總覽</button>
+                    <button class="btn secondary" onclick="exportAllData()">匯出所有數據</button>
+                    <button class="btn secondary" onclick="toggleGlobalAutoRefresh()" id="autoRefreshBtn">
+                        啟用自動刷新
+                    </button>
+                </div>
+                <div id="systemOverview" class="loading">載入系統總覽中...</div>
+            </div>
+        </div>
+        
+        <!-- 測試系統 -->
+        <div id="test-system" class="tab-content">
+            <div class="detail-grid">
+                <div class="card">
+                    <h2 class="card-title">即時數據 - 測試系統</h2>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <h3>發電功率</h3>
+                            <div class="value" id="test-power">--</div>
+                            <div class="unit">W</div>
+                        </div>
+                        <div class="stat-card">
+                            <h3>光照強度</h3>
+                            <div class="value" id="test-light">--</div>
+                            <div class="unit">lux</div>
+                        </div>
+                        <div class="stat-card">
+                            <h3>電壓</h3>
+                            <div class="value" id="test-voltage">--</div>
+                            <div class="unit">V</div>
+                        </div>
+                        <div class="stat-card">
+                            <h3>電流</h3>
+                            <div class="value" id="test-current">--</div>
+                            <div class="unit">A</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h2 class="card-title">系統控制</h2>
+                    <div class="controls">
+                        <button class="btn" onclick="refreshSiteData('test-system')">立即刷新</button>
+                        <button class="btn secondary" onclick="exportSiteData('test-system')">匯出數據</button>
+                    </div>
+                    
+                    <!-- 自動刷新控制 -->
+                    <div class="refresh-control">
+                        <h4>自動刷新設定</h4>
+                        <div class="controls">
+                            <button class="btn small" onclick="setTabRefreshInterval('test-system', 3000)">
+                                3秒刷新
+                            </button>
+                            <button class="btn small" onclick="setTabRefreshInterval('test-system', 5000)">
+                                5秒刷新
+                            </button>
+                            <button class="btn small" onclick="setTabRefreshInterval('test-system', 10000)">
+                                10秒刷新
+                            </button>
+                            <button class="btn secondary small" onclick="stopTabRefresh('test-system')">
+                                停止刷新
+                            </button>
+                        </div>
+                        <div class="refresh-status" id="refresh-status-test">
+                            刷新狀態: 待啟動
+                        </div>
+                    </div>
+                    
+                    <div id="test-status" class="loading">檢查狀態中...</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2 class="card-title">最新記錄</h2>
+                <div id="test-records" class="loading">載入記錄中...</div>
+            </div>
+        </div>
+        
+        <!-- 其他案場頁面 -->
+        <div id="jintudi-traditional" class="tab-content">
+            <div class="card">
+                <h2 class="card-title">金土地公廟傳統追日系統</h2>
+                <div class="loading">此案場功能開發中...</div>
+            </div>
+        </div>
+        
+        <div id="jintudi-smart" class="tab-content">
+            <div class="card">
+                <h2 class="card-title">金土地公廟智能追日系統</h2>
+                <div class="loading">此案場功能開發中...</div>
+            </div>
+        </div>
+        
+        <div id="eng1-traditional" class="tab-content">
+            <div class="card">
+                <h2 class="card-title">工程一館傳統追日系統</h2>
+                <div class="loading">此案場功能開發中...</div>
+            </div>
+        </div>
+        
+        <div id="eng1-smart" class="tab-content">
+            <div class="card">
+                <h2 class="card-title">工程一館智能追日系統</h2>
+                <div class="loading">此案場功能開發中...</div>
+            </div>
+        </div>
+        
+        <div class="refresh-time" id="lastRefresh">
+            最後更新: --
+        </div>
+    </div>
+<script>
+        // 自動使用當前的主機和端口
+        const API_BASE_URL = `${window.location.protocol}//${window.location.host}/api`;
+        
+        // 自動刷新相關變數
+        let currentActiveTab = 'overview';
+        let tabAutoRefreshIntervals = {};
+        let isGlobalAutoRefreshEnabled = false;
+        let systemsData = {};
+        
+        // 系統ID映射
+        const SYSTEM_MAPPING = {
+            'test-system': 10,         // 測試系統
+            'jintudi-traditional': 2,  // 金土地公廟傳統追日
+            'jintudi-smart': 3,        // 金土地公廟智能追日
+            'eng1-traditional': 4,     // 工程一館傳統追日
+            'eng1-smart': 5           // 工程一館智能追日
+        };
+        
+        // 頁面載入完成後執行
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('頁面載入完成，開始初始化...');
+            currentActiveTab = 'overview';
+            loadAllSystems();
+            refreshOverview();
+            updateLastRefreshTime();
+        });
+        
+        // 更新最後刷新時間
+        function updateLastRefreshTime() {
+            document.getElementById('lastRefresh').textContent = 
+                `最後更新: ${new Date().toLocaleString('zh-TW')}`;
+        }
+        
+        // 顯示分頁
+        function showTab(tabName) {
+            console.log('切換到分頁:', tabName);
+            
+            // 清除當前分頁的自動刷新
+            if (currentActiveTab && tabAutoRefreshIntervals[currentActiveTab]) {
+                clearInterval(tabAutoRefreshIntervals[currentActiveTab]);
+                delete tabAutoRefreshIntervals[currentActiveTab];
+            }
+            
+            // 隱藏所有標籤頁內容
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // 移除所有標籤的active狀態
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // 顯示選中的標籤頁
+            const targetTab = document.getElementById(tabName);
+            if (targetTab) {
+                targetTab.classList.add('active');
+                event.target.classList.add('active');
+                currentActiveTab = tabName;
+                
+                // 如果是詳細頁面，載入數據並開始自動刷新
+                if (tabName !== 'overview') {
+                    setTimeout(() => {
+                        console.log('開始載入分頁數據:', tabName);
+                        refreshSiteData(tabName);
+                        
+                        // 如果全域自動刷新啟用，啟動該分頁的自動刷新
+                        if (isGlobalAutoRefreshEnabled) {
+                            startTabAutoRefresh(tabName, 5000); // 預設5秒
+                        }
+                    }, 100);
+                } else {
+                    // 總覽頁面的自動刷新
+                    if (isGlobalAutoRefreshEnabled) {
+                        startOverviewAutoRefresh();
+                    }
+                }
+            } else {
+                console.error('找不到分頁:', tabName);
+            }
+        }
+        
+        // 開始特定分頁的自動刷新
+        function startTabAutoRefresh(tabName, interval = 5000) {
+            // 清除existing interval
+            if (tabAutoRefreshIntervals[tabName]) {
+                clearInterval(tabAutoRefreshIntervals[tabName]);
+            }
+            
+            console.log(`啟動 ${tabName} 自動刷新，間隔 ${interval/1000} 秒`);
+            updateRefreshStatus(tabName, `每${interval/1000}秒自動刷新`);
+            
+            tabAutoRefreshIntervals[tabName] = setInterval(() => {
+                // 只有當前分頁是活躍的才刷新
+                if (currentActiveTab === tabName) {
+                    console.log(`自動刷新 ${tabName} 數據`);
+                    refreshSiteData(tabName);
+                    updateLastRefreshTime();
+                }
+            }, interval);
+        }
+        
+        // 開始總覽頁面的自動刷新
+        function startOverviewAutoRefresh(interval = 10000) {
+            if (tabAutoRefreshIntervals['overview']) {
+                clearInterval(tabAutoRefreshIntervals['overview']);
+            }
+            
+            console.log(`啟動總覽自動刷新，間隔 ${interval/1000} 秒`);
+            
+            tabAutoRefreshIntervals['overview'] = setInterval(() => {
+                if (currentActiveTab === 'overview') {
+                    console.log('自動刷新總覽數據');
+                    refreshOverview();
+                    updateLastRefreshTime();
+                }
+            }, interval);
+        }
+        
+        // 切換全域自動刷新
+        function toggleGlobalAutoRefresh() {
+            const btn = document.getElementById('autoRefreshBtn');
+            
+            if (isGlobalAutoRefreshEnabled) {
+                // 停用自動刷新
+                isGlobalAutoRefreshEnabled = false;
+                btn.textContent = '啟用自動刷新';
+                btn.classList.remove('secondary');
+                
+                // 清除所有自動刷新間隔
+                Object.keys(tabAutoRefreshIntervals).forEach(tabName => {
+                    clearInterval(tabAutoRefreshIntervals[tabName]);
+                    delete tabAutoRefreshIntervals[tabName];
+                });
+                
+                // 更新所有狀態顯示
+                updateRefreshStatus('test', '已停用');
+                
+                console.log('全域自動刷新已停用');
+            } else {
+                // 啟用自動刷新
+                isGlobalAutoRefreshEnabled = true;
+                btn.textContent = '停用自動刷新';
+                btn.classList.add('secondary');
+                
+                // 根據當前分頁啟動相應的自動刷新
+                if (currentActiveTab === 'overview') {
+                    startOverviewAutoRefresh();
+                } else if (currentActiveTab !== 'overview') {
+                    startTabAutoRefresh(currentActiveTab, 5000);
+                }
+                
+                console.log('全域自動刷新已啟用');
+            }
+        }
+        // 設定特定分頁的刷新間隔
+        function setTabRefreshInterval(tabName, interval) {
+            if (currentActiveTab === tabName) {
+                if (tabAutoRefreshIntervals[tabName]) {
+                    clearInterval(tabAutoRefreshIntervals[tabName]);
+                    delete tabAutoRefreshIntervals[tabName];
+                }
+                
+                startTabAutoRefresh(tabName, interval);
+                console.log(`${tabName} 刷新間隔設定為 ${interval/1000} 秒`);
+            }
+        }
+        
+        // 停止特定分頁的自動刷新
+        function stopTabRefresh(tabName) {
+            if (tabAutoRefreshIntervals[tabName]) {
+                clearInterval(tabAutoRefreshIntervals[tabName]);
+                delete tabAutoRefreshIntervals[tabName];
+                updateRefreshStatus(tabName, '已停止');
+                console.log(`${tabName} 自動刷新已停止`);
+            }
+        }
+        
+        // 更新刷新狀態顯示
+        function updateRefreshStatus(tabName, status) {
+            const statusElement = document.getElementById(`refresh-status-${tabName.replace('-system', '')}`);
+            if (statusElement) {
+                statusElement.textContent = `刷新狀態: ${status}`;
+            }
+        }
+        
+        // 載入所有系統資訊
+        async function loadAllSystems() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/systems/`);
+                const systems = await response.json();
+                
+                systems.forEach(system => {
+                    systemsData[system.id] = system;
+                });
+                
+                console.log('系統資訊載入完成:', systemsData);
+                
+            } catch (error) {
+                console.error('載入系統資訊失敗:', error);
+            }
+        }
+        
+        // 刷新總覽
+        async function refreshOverview() {
+            const overviewGrid = document.getElementById('overviewGrid');
+            overviewGrid.innerHTML = '<div class="loading">載入案場資訊中...</div>';
+            
+            try {
+                const systems = await fetch(`${API_BASE_URL}/systems/`).then(r => r.json());
+                
+                let gridHTML = '';
+                
+                for (const system of systems) {
+                    const latestData = await getLatestDataForSystem(system.id);
+                    const isOnline = latestData !== null;
+                    
+                    gridHTML += `
+                        <div class="site-card">
+                            <h3>
+                                ${system.name}
+                                <span class="site-status ${isOnline ? 'online' : 'offline'}"></span>
+                            </h3>
+                            <div class="site-stats">
+                                <div class="site-stat">
+                                    <div class="label">發電功率</div>
+                                    <div class="value">${latestData?.power_output ? latestData.power_output.toFixed(1) : '--'}</div>
+                                    <div class="unit">W</div>
+                                </div>
+                                <div class="site-stat">
+                                    <div class="label">光照強度</div>
+                                    <div class="value">${latestData?.light_intensity ? latestData.light_intensity.toFixed(0) : '--'}</div>
+                                    <div class="unit">lux</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                overviewGrid.innerHTML = gridHTML;
+                
+            } catch (error) {
+                overviewGrid.innerHTML = '<div class="error">載入失敗: ' + error.message + '</div>';
+            }
+        }
+        
+        // 獲取特定系統的最新數據
+        async function getLatestDataForSystem(systemId) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/power-records/?system=${systemId}&ordering=-timestamp`);
+                
+                if (!response.ok) {
+                    console.error(`系統${systemId}數據請求失敗: ${response.status}`);
+                    return null;
+                }
+                
+                const data = await response.json();
+                const records = data.results || data;
+                return records.length > 0 ? records[0] : null;
+            } catch (error) {
+                console.error(`獲取系統${systemId}數據失敗:`, error);
+                return null;
+            }
+        }
+        
+        // 刷新特定案場數據
+        async function refreshSiteData(siteKey) {
+            const systemId = SYSTEM_MAPPING[siteKey];
+            if (!systemId) {
+                console.error(`找不到系統映射: ${siteKey}`);
+                return;
+            }
+            
+            console.log(`開始刷新 ${siteKey} 數據，系統ID: ${systemId}`);
+            
+            // 將 siteKey 轉換為對應的元素前綴
+            let elementPrefix = siteKey;
+            if (siteKey === 'test-system') {
+                elementPrefix = 'test';
+            }
+            
+            try {
+                // 檢查元素存在性
+                const powerElement = document.getElementById(`${elementPrefix}-power`);
+                const lightElement = document.getElementById(`${elementPrefix}-light`);
+                const voltageElement = document.getElementById(`${elementPrefix}-voltage`);
+                const currentElement = document.getElementById(`${elementPrefix}-current`);
+                const statusElement = document.getElementById(`${elementPrefix}-status`);
+                const recordsElement = document.getElementById(`${elementPrefix}-records`);
+                
+                // 設置載入狀態
+                if (powerElement) powerElement.textContent = '--';
+                if (lightElement) lightElement.textContent = '--';
+                if (voltageElement) voltageElement.textContent = '--';
+                if (currentElement) currentElement.textContent = '--';
+                if (statusElement) statusElement.innerHTML = '<div class="loading">檢查狀態中...</div>';
+                if (recordsElement) recordsElement.innerHTML = '<div class="loading">載入記錄中...</div>';
+                
+                // 獲取最新數據
+                const latestData = await getLatestDataForSystem(systemId);
+                console.log(`${siteKey} 最新數據:`, latestData);
+                
+                if (latestData) {
+                    // 更新數據顯示
+                    if (powerElement) powerElement.textContent = 
+                        latestData.power_output ? latestData.power_output.toFixed(2) : '--';
+                    if (lightElement) lightElement.textContent = 
+                        latestData.light_intensity ? latestData.light_intensity.toFixed(1) : '--';
+                    if (voltageElement) voltageElement.textContent = 
+                        latestData.voltage ? latestData.voltage.toFixed(2) : '--';
+                    if (currentElement) currentElement.textContent = 
+                        latestData.current ? latestData.current.toFixed(3) : '--';
+                    
+                    // 更新狀態
+                    if (statusElement) {
+                        statusElement.innerHTML = `
+                            <div style="color: #22543d; background: #f0fff4; padding: 12px; border-radius: 6px; border: 1px solid #9ae6b4;">
+                                系統運行正常 - 最後更新: ${new Date(latestData.timestamp).toLocaleString('zh-TW')}
+                            </div>
+                        `;
+                    }
+                } else {
+                    // 無數據狀態
+                    if (statusElement) {
+                        statusElement.innerHTML = `
+                            <div style="color: #742a2a; background: #fed7d7; padding: 12px; border-radius: 6px; border: 1px solid #feb2b2;">
+                                系統離線或無數據
+                            </div>
+                        `;
+                    }
+                }
+                
+                // 載入記錄
+                await loadSiteRecords(elementPrefix, systemId);
+                
+                console.log(`${siteKey} 數據刷新完成`);
+                
+            } catch (error) {
+                console.error(`載入${siteKey}數據失敗:`, error);
+                
+                const statusElement = document.getElementById(`${elementPrefix}-status`);
+                if (statusElement) {
+                    statusElement.innerHTML = `<div class="error">載入失敗: ${error.message}</div>`;
+                }
+            }
+        }
+        // 載入案場記錄
+        async function loadSiteRecords(elementPrefix, systemId) {
+            const recordsElement = document.getElementById(`${elementPrefix}-records`);
+            
+            console.log(`尋找記錄元素: ${elementPrefix}-records`, !!recordsElement);
+            
+            if (!recordsElement) {
+                console.error(`找不到記錄元素: ${elementPrefix}-records`);
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/power-records/?system=${systemId}&ordering=-timestamp`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                const records = (data.results || data).slice(0, 5);
+                
+                if (records.length > 0) {
+                    let tableHTML = `
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>時間</th>
+                                    <th>功率 (W)</th>
+                                    <th>電壓 (V)</th>
+                                    <th>電流 (A)</th>
+                                    <th>光照 (lux)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    
+                    records.forEach(record => {
+                        tableHTML += `
+                            <tr>
+                                <td>${new Date(record.timestamp).toLocaleString('zh-TW')}</td>
+                                <td><strong>${record.power_output ? record.power_output.toFixed(2) : 'N/A'}</strong></td>
+                                <td>${record.voltage ? record.voltage.toFixed(2) : 'N/A'}</td>
+                                <td>${record.current ? record.current.toFixed(3) : 'N/A'}</td>
+                                <td>${record.light_intensity ? record.light_intensity.toFixed(1) : 'N/A'}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    tableHTML += '</tbody></table>';
+                    recordsElement.innerHTML = tableHTML;
+                } else {
+                    recordsElement.innerHTML = `
+                        <div style="text-align: center; padding: 32px; color: #718096;">
+                            此案場尚無數據記錄
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error(`載入${elementPrefix}記錄失敗:`, error);
+                if (recordsElement) {
+                    recordsElement.innerHTML = `<div class="error">載入記錄失敗: ${error.message}</div>`;
+                }
+            }
+        }
+        
+        // 匯出案場數據
+        async function exportSiteData(siteKey) {
+            const systemId = SYSTEM_MAPPING[siteKey];
+            if (!systemId) return;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/power-records/?system=${systemId}&ordering=-timestamp`);
+                const data = await response.json();
+                const records = data.results || data;
+                
+                if (records.length > 0) {
+                    const headers = ['時間', '功率(W)', '電壓(V)', '電流(A)', '光照(lux)'];
+                    let csvContent = '\uFEFF' + headers.join(',') + '\n';
+                    
+                    records.forEach(record => {
+                        const row = [
+                            new Date(record.timestamp).toLocaleString('zh-TW'),
+                            record.power_output || '',
+                            record.voltage || '',
+                            record.current || '',
+                            record.light_intensity || ''
+                        ];
+                        csvContent += row.join(',') + '\n';
+                    });
+                    
+                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement('a');
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', `${siteKey}_data_${new Date().toISOString().split('T')[0]}.csv`);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                } else {
+                    alert('此案場無數據可匯出');
+                }
+            } catch (error) {
+                alert('匯出失敗: ' + error.message);
+            }
+        }
+        
+        // 匯出所有數據
+        async function exportAllData() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/power-records/?ordering=-timestamp`);
+                const data = await response.json();
+                const records = data.results || data;
+                
+                if (records.length > 0) {
+                    const headers = ['時間', '案場名稱', '功率(W)', '電壓(V)', '電流(A)', '光照(lux)'];
+                    let csvContent = '\uFEFF' + headers.join(',') + '\n';
+                    
+                    records.forEach(record => {
+                        const row = [
+                            new Date(record.timestamp).toLocaleString('zh-TW'),
+                            record.system_name || '',
+                            record.power_output || '',
+                            record.voltage || '',
+                            record.current || '',
+                            record.light_intensity || ''
+                        ];
+                        csvContent += row.join(',') + '\n';
+                    });
+                    
+                    const blob = new Blob([csvContent], { type: 'text/csv;charset-utf-8;' });
+                    const link = document.createElement('a');
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', `all_sites_data_${new Date().toISOString().split('T')[0]}.csv`);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                } else {
+                    alert('無數據可匯出');
+                }
+            } catch (error) {
+                alert('匯出失敗: ' + error.message);
+            }
+        }
+        
+        // 頁面切換時清除自動刷新
+        window.addEventListener('beforeunload', function() {
+            Object.keys(tabAutoRefreshIntervals).forEach(tabName => {
+                clearInterval(tabAutoRefreshIntervals[tabName]);
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>太陽能追日系統登入</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            max-width: 400px;
+            width: 100%;
+            margin: 20px;
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .login-header h1 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+        
+        .login-header p {
+            color: #718096;
+            font-size: 1.1em;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #4a5568;
+            font-weight: 500;
+            font-size: 0.95em;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #4299e1;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+        }
+        
+        .login-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(66, 153, 225, 0.3);
+        }
+        
+        .login-btn:active {
+            transform: translateY(0);
+        }
+        
+        .error-message {
+            background: linear-gradient(135deg, #fed7d7, #feb2b2);
+            color: #c53030;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #e53e3e;
+            font-weight: 500;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .footer a {
+            color: #4299e1;
+            text-decoration: none;
+            font-size: 0.9em;
+        }
+        
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        
+        @media (max-width: 480px) {
+            .login-container {
+                padding: 30px 20px;
+                margin: 10px;
+            }
+            
+            .login-header h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <h1> 太陽能追日系統</h1>
+            <p>請登入以存取監控儀表板</p>
+        </div>
+        
+        {% if form.errors %}
+            <div class="error-message">
+                ⚠️ 使用者名稱或密碼錯誤，請重新輸入
+            </div>
+        {% endif %}
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="id_username">使用者名稱</label>
+                <input type="text" name="username" id="id_username" required autocomplete="username">
+            </div>
+            
+            <div class="form-group">
+                <label for="id_password">密碼</label>
+                <input type="password" name="password" id="id_password" required autocomplete="current-password">
+            </div>
+            
+            <button type="submit" class="login-btn"> 登入系統</button>
+        </form>
+        
+        <div class="footer">
+            <a href="/admin/">管理後台</a>
+        </div>
+    </div>
+</body>
+</html>

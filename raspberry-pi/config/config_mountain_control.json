@@ -1,0 +1,7 @@
+{
+    "api_url": "http://140.114.59.214:8000/api", 
+    "system_id": 6,
+    "device_id": "mountain_control_device",
+    "collection_interval": 60,
+    "simulation_mode": true
+}

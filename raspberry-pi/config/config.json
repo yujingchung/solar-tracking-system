@@ -1,0 +1,15 @@
+{
+    "api_url": "http://140.114.59.214:8000/api",
+    "system_id": 5,
+    "device_id": "simulation_test_device",
+    "collection_interval": 30,
+    "simulation_mode": true,
+    "system_info": {
+        "5": "模擬測試系統",
+        "6": "山上對照組", 
+        "7": "山上實驗組",
+        "8": "頂樓對照組",
+        "9": "頂樓實驗組"
+    },
+    "note": "修改 system_id 來選擇不同的系統組別"
+}

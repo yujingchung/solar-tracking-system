@@ -1,0 +1,7 @@
+{
+    "api_url": "http://140.114.59.214:8000/api",
+    "system_id": 5,
+    "device_id": "simulation_test_device",
+    "collection_interval": 10,
+    "simulation_mode": true
+}
