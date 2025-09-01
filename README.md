@@ -26,7 +26,7 @@
 ## 快速開始
 
 1. 啟動Docker環境: `docker-compose -f docker-compose-dev.yml up -d`
-2. 訪問系統: http://localhost:8000
+2. 訪問系統: http://192.168.0.100:8000/dashboard/
 
 ## 授權
 
