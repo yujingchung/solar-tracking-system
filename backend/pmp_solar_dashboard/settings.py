@@ -11,12 +11,12 @@ YOUR_LOCAL_IP = "192.168.0.100"
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1', 
-    '192.168.0.127',
+    '192.168.0.124',
     YOUR_PUBLIC_IP, # 192.168.0.100  # 你的公網IP
     YOUR_LOCAL_IP,     
 ]
 
-DEBUG = False  # 生產環境設定
+#DEBUG = False  # 生產環境設定
 # 應用程式
 INSTALLED_APPS = [
     'admin_interface',          # 美化後台

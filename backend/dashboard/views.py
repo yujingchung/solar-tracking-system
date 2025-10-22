@@ -101,8 +101,8 @@ class RealTimeDataViewSet(viewsets.ViewSet):
                     }, status=status.HTTP_400_BAD_REQUEST)
                 
                 # 創建PowerRecord
-                power_record = PowerRecord.objects.create(
-                    system=system,
+                power_record = PowerRecord(
+                    system_id=data['system_id'],
                     voltage=data['voltage'],
                     current=data['current'],
                     power_output=data.get('power_output', data['voltage'] * data['current']),
@@ -111,39 +111,33 @@ class RealTimeDataViewSet(viewsets.ViewSet):
                     humidity=data.get('humidity'),
                     panel_azimuth=data.get('panel_azimuth'),
                     panel_tilt=data.get('panel_tilt'),
-                    notes=data.get('notes', f"設備: {data.get('device_id', 'unknown')}")
+                    notes=data.get('notes', '')
                 )
+                
+                # 新增：添加推桿相關數據
+                power_record.actuator_voltage = data.get('actuator_voltage')
+                power_record.actuator_current = data.get('actuator_current')
+                power_record.actuator_power = data.get('actuator_power')
+                power_record.actuator_angle = data.get('actuator_angle')
+                power_record.actuator_extension = data.get('actuator_extension')
+                
+                # 保存記錄
+                power_record.save()
                 
                 return Response({
                     "status": "success",
-                    "message": "數據記錄成功",
-                    "record_id": power_record.id,
-                    "power": power_record.power_output
+                    "message": "數據已保存",
+                    "record_id": power_record.id
                 }, status=status.HTTP_201_CREATED)
                 
             except Exception as e:
                 return Response({
                     "status": "error",
-                    "message": f"數據庫錯誤: {str(e)}"
+                    "message": f"保存數據時發生錯誤: {str(e)}"
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-        return Response({
-            "status": "error",
-            "message": "數據驗證失敗",
-            "errors": serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
-    
-    @action(detail=False, methods=['get'])
-    def status(self, request):
-        """系統狀態檢查"""
-        try:
-            return Response({
-                "status": "online",
-                "timestamp": timezone.now(),
-                "message": "實時數據API正常運行"
-            })
-        except Exception as e:
+        else:
             return Response({
                 "status": "error",
-                "message": f"系統錯誤: {str(e)}"
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                "message": "數據驗證失敗",
+                "errors": serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)

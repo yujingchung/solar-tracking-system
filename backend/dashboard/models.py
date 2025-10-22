@@ -39,6 +39,18 @@ class PowerRecord(models.Model):
     panel_azimuth = models.FloatField(null=True, blank=True, verbose_name="方位角(°)")
     panel_tilt = models.FloatField(null=True, blank=True, verbose_name="傾角(°)")
     
+    # 推桿電壓電流數據 (新增)
+    actuator_voltage = models.FloatField(null=True, blank=True, verbose_name="推桿電壓(V)", 
+                                       help_text="線性致動器(推桿)的工作電壓")
+    actuator_current = models.FloatField(null=True, blank=True, verbose_name="推桿電流(A)",
+                                       help_text="線性致動器(推桿)的工作電流")
+    actuator_power = models.FloatField(null=True, blank=True, verbose_name="推桿功率(W)",
+                                     help_text="線性致動器(推桿)的功耗")
+    actuator_angle = models.FloatField(null=True, blank=True, verbose_name="推桿角度(°)",
+                                     help_text="線性致動器(推桿)當前角度")
+    actuator_extension = models.FloatField(null=True, blank=True, verbose_name="推桿伸展長度(mm)",
+                                         help_text="線性致動器(推桿)當前伸展長度")
+    
     # 記錄元數據
     notes = models.CharField(max_length=200, blank=True, verbose_name="備註")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="記錄建立時間")
@@ -52,6 +64,11 @@ class PowerRecord(models.Model):
         # 自動計算功率（如果沒有提供）
         if not self.power_output and self.voltage and self.current:
             self.power_output = self.voltage * self.current
+        
+        # 自動計算推桿功率（如果沒有提供）
+        if not self.actuator_power and self.actuator_voltage and self.actuator_current:
+            self.actuator_power = self.actuator_voltage * self.actuator_current
+            
         super().save(*args, **kwargs)
     
     def __str__(self):

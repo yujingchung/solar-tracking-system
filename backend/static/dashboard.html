@@ -399,6 +399,32 @@
                         <button class="btn" onclick="refreshSiteData('test-system')">立即刷新</button>
                         <button class="btn secondary" onclick="exportSiteData('test-system')">匯出數據</button>
                     </div>
+                <!-- 新增：推桿數據卡片 -->
+                <div class="card">
+                    <h3 class="card-title">推桿數據</h3>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <h3>推桿功率</h3>
+                            <div class="value" id="test-actuator-power">--</div>
+                            <div class="unit">W</div>
+                        </div>
+                        <div class="stat-card">
+                            <h3>推桿角度</h3>
+                            <div class="value" id="test-actuator-angle">--</div>
+                            <div class="unit">°</div>
+                        </div>
+                        <div class="stat-card">
+                            <h3>推桿電壓</h3>
+                            <div class="value" id="test-actuator-voltage">--</div>
+                            <div class="unit">V</div>
+                        </div>
+                        <div class="stat-card">
+                            <h3>推桿電流</h3>
+                            <div class="value" id="test-actuator-current">--</div>
+                            <div class="unit">A</div>
+                        </div>
+                    </div>
+                </div>
                     
                     <!-- 自動刷新控制 -->
                     <div class="refresh-control">
@@ -732,44 +758,44 @@
         }
         
         // 刷新特定案場數據
-        async function refreshSiteData(siteKey) {
-            const systemId = SYSTEM_MAPPING[siteKey];
-            if (!systemId) {
-                console.error(`找不到系統映射: ${siteKey}`);
-                return;
-            }
-            
-            console.log(`開始刷新 ${siteKey} 數據，系統ID: ${systemId}`);
-            
-            // 將 siteKey 轉換為對應的元素前綴
-            let elementPrefix = siteKey;
-            if (siteKey === 'test-system') {
-                elementPrefix = 'test';
-            }
-            
+        async function refreshSiteData(elementPrefix, systemId) {
             try {
-                // 檢查元素存在性
+                console.log(`開始刷新 ${elementPrefix} 數據...`);
+                
                 const powerElement = document.getElementById(`${elementPrefix}-power`);
                 const lightElement = document.getElementById(`${elementPrefix}-light`);
                 const voltageElement = document.getElementById(`${elementPrefix}-voltage`);
                 const currentElement = document.getElementById(`${elementPrefix}-current`);
                 const statusElement = document.getElementById(`${elementPrefix}-status`);
-                const recordsElement = document.getElementById(`${elementPrefix}-records`);
                 
-                // 設置載入狀態
-                if (powerElement) powerElement.textContent = '--';
-                if (lightElement) lightElement.textContent = '--';
-                if (voltageElement) voltageElement.textContent = '--';
-                if (currentElement) currentElement.textContent = '--';
-                if (statusElement) statusElement.innerHTML = '<div class="loading">檢查狀態中...</div>';
-                if (recordsElement) recordsElement.innerHTML = '<div class="loading">載入記錄中...</div>';
+                // 新增：推桿數據元素
+                const actuatorPowerElement = document.getElementById(`${elementPrefix}-actuator-power`);
+                const actuatorAngleElement = document.getElementById(`${elementPrefix}-actuator-angle`);
+                const actuatorVoltageElement = document.getElementById(`${elementPrefix}-actuator-voltage`);
+                const actuatorCurrentElement = document.getElementById(`${elementPrefix}-actuator-current`);
                 
-                // 獲取最新數據
-                const latestData = await getLatestDataForSystem(systemId);
-                console.log(`${siteKey} 最新數據:`, latestData);
+                const response = await fetch(`${API_BASE_URL}/power-records/latest/?system=${systemId}`);
+                
+                if (response.status === 404) {
+                    // 無數據
+                    if (statusElement) {
+                        statusElement.innerHTML = `
+                            <div style="color: #742a2a; background: #fed7d7; padding: 12px; border-radius: 6px; border: 1px solid #feb2b2;">
+                                系統離線或無數據
+                            </div>
+                        `;
+                    }
+                    return;
+                }
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const latestData = await response.json();
                 
                 if (latestData) {
-                    // 更新數據顯示
+                    // 更新太陽能板數據
                     if (powerElement) powerElement.textContent = 
                         latestData.power_output ? latestData.power_output.toFixed(2) : '--';
                     if (lightElement) lightElement.textContent = 
@@ -778,6 +804,16 @@
                         latestData.voltage ? latestData.voltage.toFixed(2) : '--';
                     if (currentElement) currentElement.textContent = 
                         latestData.current ? latestData.current.toFixed(3) : '--';
+                    
+                    // 新增：更新推桿數據
+                    if (actuatorPowerElement) actuatorPowerElement.textContent = 
+                        latestData.actuator_power ? latestData.actuator_power.toFixed(2) : '--';
+                    if (actuatorAngleElement) actuatorAngleElement.textContent = 
+                        latestData.actuator_angle ? latestData.actuator_angle.toFixed(1) : '--';
+                    if (actuatorVoltageElement) actuatorVoltageElement.textContent = 
+                        latestData.actuator_voltage ? latestData.actuator_voltage.toFixed(2) : '--';
+                    if (actuatorCurrentElement) actuatorCurrentElement.textContent = 
+                        latestData.actuator_current ? latestData.actuator_current.toFixed(3) : '--';
                     
                     // 更新狀態
                     if (statusElement) {
@@ -801,10 +837,10 @@
                 // 載入記錄
                 await loadSiteRecords(elementPrefix, systemId);
                 
-                console.log(`${siteKey} 數據刷新完成`);
+                console.log(`${elementPrefix} 數據刷新完成`);
                 
             } catch (error) {
-                console.error(`載入${siteKey}數據失敗:`, error);
+                console.error(`載入${elementPrefix}數據失敗:`, error);
                 
                 const statusElement = document.getElementById(`${elementPrefix}-status`);
                 if (statusElement) {
@@ -815,8 +851,6 @@
         // 載入案場記錄
         async function loadSiteRecords(elementPrefix, systemId) {
             const recordsElement = document.getElementById(`${elementPrefix}-records`);
-            
-            console.log(`尋找記錄元素: ${elementPrefix}-records`, !!recordsElement);
             
             if (!recordsElement) {
                 console.error(`找不到記錄元素: ${elementPrefix}-records`);
@@ -843,6 +877,8 @@
                                     <th>電壓 (V)</th>
                                     <th>電流 (A)</th>
                                     <th>光照 (lux)</th>
+                                    <th>推桿功率 (W)</th>
+                                    <th>推桿角度 (°)</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -856,24 +892,20 @@
                                 <td>${record.voltage ? record.voltage.toFixed(2) : 'N/A'}</td>
                                 <td>${record.current ? record.current.toFixed(3) : 'N/A'}</td>
                                 <td>${record.light_intensity ? record.light_intensity.toFixed(1) : 'N/A'}</td>
+                                <td>${record.actuator_power ? record.actuator_power.toFixed(2) : 'N/A'}</td>
+                                <td>${record.actuator_angle ? record.actuator_angle.toFixed(1) : 'N/A'}</td>
                             </tr>
                         `;
                     });
                     
-                    tableHTML += '</tbody></table>';
+                    tableHTML += `</tbody></table>`;
                     recordsElement.innerHTML = tableHTML;
                 } else {
-                    recordsElement.innerHTML = `
-                        <div style="text-align: center; padding: 32px; color: #718096;">
-                            此案場尚無數據記錄
-                        </div>
-                    `;
+                    recordsElement.innerHTML = `<div class="empty-data">無記錄數據</div>`;
                 }
             } catch (error) {
-                console.error(`載入${elementPrefix}記錄失敗:`, error);
-                if (recordsElement) {
-                    recordsElement.innerHTML = `<div class="error">載入記錄失敗: ${error.message}</div>`;
-                }
+                console.error(`載入記錄失敗:`, error);
+                recordsElement.innerHTML = `<div class="error">載入記錄失敗: ${error.message}</div>`;
             }
         }
         
