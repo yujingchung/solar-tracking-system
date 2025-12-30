@@ -33,6 +33,9 @@ class PowerRecordViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """優化查詢並處理過濾"""
+        from datetime import timedelta
+        from django.utils import timezone
+        
         queryset = PowerRecord.objects.select_related('system').all()
         
         # 手動處理system過濾，避免過濾器錯誤
@@ -44,6 +47,31 @@ class PowerRecordViewSet(viewsets.ModelViewSet):
             except (ValueError, TypeError):
                 # 如果system_id不是有效整數，返回空查詢集
                 queryset = queryset.none()
+        
+        # 日期範圍過濾 - 預設查詢最近 7 天
+        days = self.request.query_params.get('days', '7')
+        start_date = self.request.query_params.get('start_date', None)
+        end_date = self.request.query_params.get('end_date', None)
+        
+        if start_date and end_date:
+            # 使用自訂日期範圍
+            try:
+                queryset = queryset.filter(
+                    timestamp__date__gte=start_date,
+                    timestamp__date__lte=end_date
+                )
+            except Exception:
+                pass  # 日期格式錯誤時忽略
+        elif days != 'all':
+            # 使用天數過濾
+            try:
+                days_int = int(days)
+                start_time = timezone.now() - timedelta(days=days_int)
+                queryset = queryset.filter(timestamp__gte=start_time)
+            except (ValueError, TypeError):
+                # 預設使用 7 天
+                start_time = timezone.now() - timedelta(days=7)
+                queryset = queryset.filter(timestamp__gte=start_time)
         
         return queryset
     

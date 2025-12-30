@@ -59,6 +59,11 @@ class PowerRecord(models.Model):
         verbose_name = "發電記錄"
         verbose_name_plural = "發電記錄"
         ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['-timestamp'], name='idx_timestamp'),
+            models.Index(fields=['system'], name='idx_system'),
+            models.Index(fields=['system', '-timestamp'], name='idx_system_timestamp'),
+        ]
     
     def save(self, *args, **kwargs):
         # 自動計算功率（如果沒有提供）

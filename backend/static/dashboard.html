@@ -1,32 +1,33 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>太陽能追日系統多案場監控</title>
-    
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <style>
         body {
             background-color: #f0f2f5;
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         }
-        
+
         /* 卡片特效 */
         .card {
             border: none;
             border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
             transition: transform 0.2s, box-shadow 0.2s;
             margin-bottom: 20px;
         }
-        
+
         /* 滑鼠移過卡片時浮起 */
         .site-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
             cursor: pointer;
         }
 
@@ -38,7 +39,7 @@
             letter-spacing: 0.5px;
             margin-bottom: 5px;
         }
-        
+
         .stat-value {
             font-size: 1.8rem;
             font-weight: 700;
@@ -54,7 +55,8 @@
         /* 四方位光照卡片樣式 */
         .sun-card {
             background: #fff;
-            border-left: 4px solid #ffc107; /* 黃色邊條 */
+            border-left: 4px solid #ffc107;
+            /* 黃色邊條 */
         }
 
         /* 推桿耗能卡片特別樣式 */
@@ -62,7 +64,7 @@
             background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
             border: 1px solid #90caf9;
         }
-        
+
         /* 狀態燈號 */
         .status-badge {
             padding: 5px 12px;
@@ -70,10 +72,17 @@
             font-size: 0.85em;
             font-weight: 600;
         }
-        
-        .status-online { background-color: #d1e7dd; color: #0f5132; }
-        .status-offline { background-color: #f8d7da; color: #842029; }
-        
+
+        .status-online {
+            background-color: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .status-offline {
+            background-color: #f8d7da;
+            color: #842029;
+        }
+
         /* 導覽列樣式優化 */
         .nav-pills .nav-link {
             color: #495057;
@@ -82,7 +91,7 @@
             padding: 10px 20px;
             font-weight: 500;
         }
-        
+
         .nav-pills .nav-link.active {
             background-color: #0d6efd;
             color: white;
@@ -90,13 +99,14 @@
         }
     </style>
 </head>
+
 <body class="py-4">
     <div class="container-fluid container-xl">
         <div class="text-center mb-5">
             <h1 class="fw-bold text-dark">太陽能追日系統多案場監控</h1>
             <p class="text-muted">即時監控各案場發電效能與系統狀態</p>
         </div>
-        
+
         <div class="card p-3 mb-4">
             <ul class="nav nav-pills" id="mainTab" role="tablist">
                 <li class="nav-item">
@@ -119,9 +129,9 @@
                 </li>
             </ul>
         </div>
-        
+
         <div class="tab-content">
-            
+
             <div id="overview" class="tab-pane fade show active">
                 <div class="row g-4 mb-4">
                     <div class="col-md-6 col-lg-4">
@@ -131,7 +141,9 @@
                                 <span class="status-badge status-online" id="overview-test-status">運行中</span>
                             </div>
                             <div class="text-center py-3">
-                                <div class="stat-value text-primary"><span id="overview-test-power">--</span> <small>W</small></div>
+                                <div class="stat-value text-primary"><span id="overview-test-power">--</span>
+                                    <small>W</small>
+                                </div>
                                 <div class="stat-label">即時功率</div>
                             </div>
                             <div class="text-end text-muted small">
@@ -152,15 +164,30 @@
                             </div>
                         </div>
                     </div>
-                    </div>
-                
+                </div>
+
                 <div class="card p-4">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
                         <h4 class="m-0">所有案場數據記錄</h4>
                         <div>
-                            <button class="btn btn-primary btn-sm me-2" onclick="refreshAllSites()"><i class="fas fa-sync-alt me-1"></i> 刷新</button>
-                            <button class="btn btn-outline-secondary btn-sm" onclick="exportAllData()"><i class="fas fa-download me-1"></i> 匯出</button>
+                            <button class="btn btn-primary btn-sm me-2" onclick="refreshAllSites()"><i
+                                    class="fas fa-sync-alt me-1"></i> 刷新</button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="exportAllData()"><i
+                                    class="fas fa-download me-1"></i> 匯出</button>
                         </div>
+                    </div>
+                    <!-- 日期範圍選擇器 -->
+                    <div class="mb-3">
+                        <label class="form-label small text-muted"><i class="fas fa-calendar-alt me-1"></i>
+                            資料範圍:</label>
+                        <select id="date-range-selector" class="form-select form-select-sm"
+                            style="width: auto; display: inline-block;" onchange="onDateRangeChange()">
+                            <option value="7" selected>最近 7 天</option>
+                            <option value="30">最近 30 天</option>
+                            <option value="90">最近 90 天</option>
+                            <option value="all">全部資料</option>
+                        </select>
+                        <span class="ms-2 small text-muted" id="data-count-info">載入中...</span>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
@@ -175,24 +202,31 @@
                                 </tr>
                             </thead>
                             <tbody id="all-sites-table-body">
-                                <tr><td colspan="6" class="text-center py-4 text-muted">載入中...</td></tr>
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">載入中...</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
                     <div class="d-flex justify-content-center align-items-center mt-3">
-                        <button class="btn btn-outline-secondary btn-sm" onclick="prevPage()">上一頁</button>
-                        <span class="mx-3 text-muted">第 <span id="current-page">1</span> 頁</span>
-                        <button class="btn btn-outline-secondary btn-sm" onclick="nextPage()">下一頁</button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="prevPage()" id="prev-btn"><i
+                                class="fas fa-chevron-left"></i> 上一頁</button>
+                        <span class="mx-3 text-muted">第 <span id="current-page">1</span> / <span
+                                id="total-pages">1</span> 頁 (共 <span id="total-count">0</span> 筆)</span>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="nextPage()" id="next-btn">下一頁 <i
+                                class="fas fa-chevron-right"></i></button>
                     </div>
                 </div>
             </div>
-            
+
             <div id="test-system" class="tab-pane fade" style="display: none;">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h3 class="fw-bold">測試系統詳細數據</h3>
                     <div>
-                        <button class="btn btn-primary" onclick="refreshSiteData('test', 10)"><i class="fas fa-sync-alt"></i> 立即刷新</button>
-                        <button class="btn btn-outline-secondary" onclick="exportSiteData(10)"><i class="fas fa-file-export"></i> 匯出數據</button>
+                        <button class="btn btn-primary" onclick="refreshSiteData('test', 10)"><i
+                                class="fas fa-sync-alt"></i> 立即刷新</button>
+                        <button class="btn btn-outline-secondary" onclick="exportSiteData(10)"><i
+                                class="fas fa-file-export"></i> 匯出數據</button>
                     </div>
                 </div>
 
@@ -200,17 +234,20 @@
                     <div class="col-lg-6">
                         <div class="card h-100">
                             <div class="card-header bg-white border-0 pt-3">
-                                <h5 class="card-title fw-bold"><i class="fas fa-solar-panel text-warning me-2"></i>發電與環境光照</h5>
+                                <h5 class="card-title fw-bold"><i
+                                        class="fas fa-solar-panel text-warning me-2"></i>發電與環境光照</h5>
                             </div>
                             <div class="card-body">
                                 <div class="row g-3">
                                     <div class="col-12">
                                         <div class="p-3 bg-light rounded text-center mb-2">
                                             <div class="stat-label">太陽能板發電功率</div>
-                                            <div class="stat-value text-warning"><span id="test-power">--</span> <small>W</small></div>
+                                            <div class="stat-value text-warning"><span id="test-power">--</span>
+                                                <small>W</small>
+                                            </div>
                                         </div>
                                     </div>
-                                    
+
                                     <div class="col-12">
                                         <label class="small text-muted mb-2 d-block">四方位光照強度 (lux)</label>
                                         <div class="row g-2">
@@ -269,7 +306,7 @@
                                         <div class="p-3 rounded text-center energy-card mb-2">
                                             <div class="stat-label text-primary">今日推桿累積耗能</div>
                                             <div class="stat-value text-primary">
-                                                <span id="test-actuator-energy">0.00</span> 
+                                                <span id="test-actuator-energy">0.00</span>
                                                 <small class="fs-6">Wh</small>
                                             </div>
                                             <small class="text-muted" style="font-size: 0.75rem;">(電壓 x 電流 積分計算)</small>
@@ -279,13 +316,15 @@
                                     <div class="col-6">
                                         <div class="p-3 bg-light rounded text-center h-100">
                                             <div class="stat-label">即時功率</div>
-                                            <div class="stat-value"><span id="test-actuator-power">--</span> <small class="fs-6">W</small></div>
+                                            <div class="stat-value"><span id="test-actuator-power">--</span> <small
+                                                    class="fs-6">W</small></div>
                                         </div>
                                     </div>
                                     <div class="col-6">
                                         <div class="p-3 bg-light rounded text-center h-100">
                                             <div class="stat-label">當前角度</div>
-                                            <div class="stat-value"><span id="test-actuator-angle">--</span> <small class="fs-6">°</small></div>
+                                            <div class="stat-value"><span id="test-actuator-angle">--</span> <small
+                                                    class="fs-6">°</small></div>
                                         </div>
                                     </div>
 
@@ -306,21 +345,24 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="card p-3 mt-4">
                     <div class="d-flex align-items-center">
                         <h6 class="mb-0 me-3">自動刷新頻率：</h6>
                         <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-primary" onclick="setTabRefreshInterval('test-system', 3000)">3秒</button>
-                            <button class="btn btn-outline-primary" onclick="setTabRefreshInterval('test-system', 5000)">5秒</button>
-                            <button class="btn btn-outline-primary" onclick="setTabRefreshInterval('test-system', 10000)">10秒</button>
+                            <button class="btn btn-outline-primary"
+                                onclick="setTabRefreshInterval('test-system', 3000)">3秒</button>
+                            <button class="btn btn-outline-primary"
+                                onclick="setTabRefreshInterval('test-system', 5000)">5秒</button>
+                            <button class="btn btn-outline-primary"
+                                onclick="setTabRefreshInterval('test-system', 10000)">10秒</button>
                             <button class="btn btn-outline-danger" onclick="stopTabRefresh('test-system')">停止</button>
                         </div>
                         <span class="ms-3 text-muted small" id="refresh-status-test">狀態: 待啟動</span>
                     </div>
                     <div id="test-status" class="mt-2 small"></div>
                 </div>
-                
+
                 <div class="card p-4 mt-4">
                     <h5 class="card-title mb-3">最新 5 筆記錄</h5>
                     <div id="test-records" class="table-responsive">
@@ -329,10 +371,18 @@
                 </div>
             </div>
 
-            <div id="jintudi-traditional" class="tab-pane fade" style="display: none;"><div class="card p-5 text-center text-muted">功能開發中...</div></div>
-            <div id="jintudi-smart" class="tab-pane fade" style="display: none;"><div class="card p-5 text-center text-muted">功能開發中...</div></div>
-            <div id="eng1-traditional" class="tab-pane fade" style="display: none;"><div class="card p-5 text-center text-muted">功能開發中...</div></div>
-            <div id="eng1-smart" class="tab-pane fade" style="display: none;"><div class="card p-5 text-center text-muted">功能開發中...</div></div>
+            <div id="jintudi-traditional" class="tab-pane fade" style="display: none;">
+                <div class="card p-5 text-center text-muted">功能開發中...</div>
+            </div>
+            <div id="jintudi-smart" class="tab-pane fade" style="display: none;">
+                <div class="card p-5 text-center text-muted">功能開發中...</div>
+            </div>
+            <div id="eng1-traditional" class="tab-pane fade" style="display: none;">
+                <div class="card p-5 text-center text-muted">功能開發中...</div>
+            </div>
+            <div id="eng1-smart" class="tab-pane fade" style="display: none;">
+                <div class="card p-5 text-center text-muted">功能開發中...</div>
+            </div>
         </div>
     </div>
 
@@ -343,7 +393,7 @@
         const itemsPerPage = 10;
         let allSitesData = [];
 
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             refreshOverview();
             refreshSiteData('test', 10);
             setTabRefreshInterval('overview', 30000);
@@ -361,7 +411,7 @@
 
             // 顯示目標 tab
             const targetPane = document.getElementById(tabId);
-            if(targetPane) {
+            if (targetPane) {
                 targetPane.style.display = 'block';
                 // 稍微延遲加上 show class 以觸發淡入動畫 (Bootstrap fade)
                 setTimeout(() => targetPane.classList.add('show', 'active'), 50);
@@ -393,16 +443,16 @@
             try {
                 const powerEl = document.getElementById(`${elementPrefix}-power`);
                 const statusEl = document.getElementById(`${elementPrefix}-status`);
-                
+
                 // 獲取最新數據
                 const response = await fetch(`${API_BASE_URL}/power-records/latest/?system=${systemId}`);
-                
+
                 if (!response.ok) throw new Error("API Error");
                 const data = await response.json();
-                
+
                 if (data) {
                     // 1. 更新基本數據
-                    if(powerEl) powerEl.textContent = data.power_output ? data.power_output.toFixed(2) : '--';
+                    if (powerEl) powerEl.textContent = data.power_output ? data.power_output.toFixed(2) : '--';
                     document.getElementById(`${elementPrefix}-voltage`).textContent = data.voltage ? data.voltage.toFixed(2) : '--';
                     document.getElementById(`${elementPrefix}-current`).textContent = data.current ? data.current.toFixed(3) : '--';
 
@@ -428,21 +478,21 @@
                     // 4. 更新今日耗能 (Wh) - 暫時顯示 0.00
                     // 這裡預留了位置，等你後端計算好傳回 'actuator_daily_energy' 即可自動顯示
                     const energyEl = document.getElementById(`${elementPrefix}-actuator-energy`);
-                    if(energyEl) {
+                    if (energyEl) {
                         energyEl.textContent = data.actuator_daily_energy ? data.actuator_daily_energy.toFixed(2) : "0.00";
                     }
 
                     // 狀態更新
-                    if(statusEl) statusEl.innerHTML = `<span class="text-success"><i class="fas fa-check-circle"></i> 系統連線正常 (${new Date(data.timestamp).toLocaleTimeString()})</span>`;
+                    if (statusEl) statusEl.innerHTML = `<span class="text-success"><i class="fas fa-check-circle"></i> 系統連線正常 (${new Date(data.timestamp).toLocaleTimeString()})</span>`;
                 }
-                
+
                 // 載入下方表格記錄
                 loadSiteRecords(elementPrefix, systemId);
 
             } catch (error) {
                 console.error("載入失敗:", error);
                 const statusEl = document.getElementById(`${elementPrefix}-status`);
-                if(statusEl) statusEl.innerHTML = `<span class="text-danger"><i class="fas fa-exclamation-triangle"></i> 連線失敗或無數據</span>`;
+                if (statusEl) statusEl.innerHTML = `<span class="text-danger"><i class="fas fa-exclamation-triangle"></i> 連線失敗或無數據</span>`;
             }
         }
 
@@ -459,7 +509,7 @@
                         <thead class="table-light">
                             <tr><th>時間</th><th>發電(W)</th><th>推桿功率(W)</th><th>推桿角度(°)</th></tr>
                         </thead><tbody>`;
-                    
+
                     records.forEach(r => {
                         html += `<tr>
                             <td>${new Date(r.timestamp).toLocaleTimeString()}</td>
@@ -471,56 +521,96 @@
                     html += `</tbody></table>`;
                     container.innerHTML = html;
                 }
-            } catch(e) { container.innerHTML = "載入錯誤"; }
+            } catch (e) { container.innerHTML = "載入錯誤"; }
         }
 
-        // 刷新所有數據列表
+        // 刷新所有數據列表 (使用後端分頁)
         async function refreshAllSitesData() {
             const tbody = document.getElementById('all-sites-table-body');
+            const days = document.getElementById('date-range-selector').value;
+
             try {
-                const response = await fetch(`${API_BASE_URL}/power-records/?limit=50`);
+                // 使用後端分頁 API
+                const url = `${API_BASE_URL}/power-records/?page=${currentPage}&days=${days}`;
+                const response = await fetch(url);
                 const data = await response.json();
-                allSitesData = data.results || data;
-                
-                if (allSitesData.length > 0) {
-                    renderCurrentPage();
-                    document.getElementById('total-pages').textContent = Math.ceil(allSitesData.length / itemsPerPage); // 更新總頁數 (這行如果 HTML 沒這 ID 會報錯，建議保留 HTML 結構)
+
+                // 更新總頁數和總筆數
+                const totalCount = data.count || 0;
+                const totalPages = Math.ceil(totalCount / 20); // 後端每頁 20 筆
+
+                document.getElementById('total-count').textContent = totalCount;
+                document.getElementById('total-pages').textContent = totalPages || 1;
+                document.getElementById('current-page').textContent = currentPage;
+
+                // 更新資料範圍資訊
+                const daysText = days === 'all' ? '全部' : `最近 ${days} 天`;
+                document.getElementById('data-count-info').textContent = `顯示 ${daysText} 的資料 (共 ${totalCount} 筆)`;
+
+                // 更新按鈕狀態
+                document.getElementById('prev-btn').disabled = !data.previous;
+                document.getElementById('next-btn').disabled = !data.next;
+
+                // 渲染資料
+                const records = data.results || [];
+                if (records.length > 0) {
+                    tbody.innerHTML = '';
+                    records.forEach(r => {
+                        const row = `<tr>
+                            <td><span class="badge bg-secondary">${r.system_name || 'System ' + r.system}</span></td>
+                            <td>${new Date(r.timestamp).toLocaleString()}</td>
+                            <td class="fw-bold text-success">${r.power_output?.toFixed(2) || '-'}</td>
+                            <td>${r.voltage?.toFixed(2) || '-'}</td>
+                            <td>${r.current?.toFixed(3) || '-'}</td>
+                            <td>${r.light_intensity?.toFixed(1) || '-'}</td>
+                        </tr>`;
+                        tbody.innerHTML += row;
+                    });
                 } else {
                     tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">無數據</td></tr>`;
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) {
+                console.error(e);
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">載入失敗</td></tr>`;
+            }
         }
 
-        function renderCurrentPage() {
-            const start = (currentPage - 1) * itemsPerPage;
-            const pageData = allSitesData.slice(start, start + itemsPerPage);
-            const tbody = document.getElementById('all-sites-table-body');
-            tbody.innerHTML = '';
-            
-            pageData.forEach(r => {
-                const row = `<tr>
-                    <td><span class="badge bg-secondary">${r.system_name || 'System'}</span></td>
-                    <td>${new Date(r.timestamp).toLocaleString()}</td>
-                    <td class="fw-bold text-success">${r.power_output?.toFixed(2) || '-'}</td>
-                    <td>${r.voltage?.toFixed(2) || '-'}</td>
-                    <td>${r.current?.toFixed(3) || '-'}</td>
-                    <td>${r.light_intensity?.toFixed(1) || '-'}</td>
-                </tr>`;
-                tbody.innerHTML += row;
-            });
-            document.getElementById('current-page').textContent = currentPage;
+
+
+        // 日期範圍改變時重新載入資料
+        function onDateRangeChange() {
+            currentPage = 1;
+            refreshAllSitesData();
         }
 
-        function prevPage() { if(currentPage > 1) { currentPage--; renderCurrentPage(); }}
-        function nextPage() { if(currentPage < Math.ceil(allSitesData.length / itemsPerPage)) { currentPage++; renderCurrentPage(); }}
+        // 分頁導航
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                refreshAllSitesData();
+            }
+        }
+
+        function nextPage() {
+            const totalPages = parseInt(document.getElementById('total-pages').textContent);
+            if (currentPage < totalPages) {
+                currentPage++;
+                refreshAllSitesData();
+            }
+        }
+
+        function refreshAllSites() {
+            currentPage = 1;
+            refreshAllSitesData();
+        }
 
         // 定時器設定
         function setTabRefreshInterval(tabId, interval) {
             if (tabAutoRefreshIntervals[tabId]) clearInterval(tabAutoRefreshIntervals[tabId]);
-            
+
             const statusId = `refresh-status-${tabId === 'test-system' ? 'test' : tabId}`;
             const statusEl = document.getElementById(statusId);
-            if(statusEl) statusEl.textContent = `狀態: 每 ${interval/1000} 秒刷新`;
+            if (statusEl) statusEl.textContent = `狀態: 每 ${interval / 1000} 秒刷新`;
 
             tabAutoRefreshIntervals[tabId] = setInterval(() => {
                 if (tabId === 'overview') refreshOverview();
@@ -533,16 +623,17 @@
                 clearInterval(tabAutoRefreshIntervals[tabId]);
                 delete tabAutoRefreshIntervals[tabId];
                 const statusEl = document.getElementById(`refresh-status-${tabId === 'test-system' ? 'test' : tabId}`);
-                if(statusEl) statusEl.textContent = "狀態: 已停止";
+                if (statusEl) statusEl.textContent = "狀態: 已停止";
             }
         }
-        
+
         // 匯出功能 (簡易實作)
         function exportSiteData(sysId) { alert("功能準備中 (等待後端 API 更新)"); }
         function exportAllData() { alert("功能準備中"); }
 
     </script>
-    
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>
