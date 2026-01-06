@@ -39,17 +39,45 @@ class PowerRecord(models.Model):
     panel_azimuth = models.FloatField(null=True, blank=True, verbose_name="方位角(°)")
     panel_tilt = models.FloatField(null=True, blank=True, verbose_name="傾角(°)")
     
-    # 推桿電壓電流數據 (新增)
-    actuator_voltage = models.FloatField(null=True, blank=True, verbose_name="推桿電壓(V)", 
-                                       help_text="線性致動器(推桿)的工作電壓")
-    actuator_current = models.FloatField(null=True, blank=True, verbose_name="推桿電流(A)",
-                                       help_text="線性致動器(推桿)的工作電流")
-    actuator_power = models.FloatField(null=True, blank=True, verbose_name="推桿功率(W)",
-                                     help_text="線性致動器(推桿)的功耗")
-    actuator_angle = models.FloatField(null=True, blank=True, verbose_name="推桿角度(°)",
-                                     help_text="線性致動器(推桿)當前角度")
-    actuator_extension = models.FloatField(null=True, blank=True, verbose_name="推桿伸展長度(mm)",
-                                         help_text="線性致動器(推桿)當前伸展長度")
+    # 樹莓派電源數據
+    raspberry_pi_voltage = models.FloatField(null=True, blank=True, verbose_name="樹莓派電壓(V)",
+                                            help_text="Raspberry Pi 的工作電壓")
+    raspberry_pi_current = models.FloatField(null=True, blank=True, verbose_name="樹莓派電流(A)",
+                                            help_text="Raspberry Pi 的工作電流")
+    raspberry_pi_power = models.FloatField(null=True, blank=True, verbose_name="樹莓派功率(W)",
+                                          help_text="Raspberry Pi 的功耗")
+    
+    # 推桿總電壓電流數據 (兩根推桿的總和)
+    actuator_total_voltage = models.FloatField(null=True, blank=True, verbose_name="推桿總電壓(V)",
+                                              help_text="兩根推桿的總電壓")
+    actuator_total_current = models.FloatField(null=True, blank=True, verbose_name="推桿總電流(A)",
+                                              help_text="兩根推桿的總電流")
+    actuator_total_power = models.FloatField(null=True, blank=True, verbose_name="推桿總功率(W)",
+                                            help_text="兩根推桿的總功耗")
+    
+    # 南北推桿數據
+    ns_actuator_angle = models.FloatField(null=True, blank=True, verbose_name="南北推桿角度(°)",
+                                         help_text="南北方向推桿當前角度")
+    ns_actuator_extension = models.FloatField(null=True, blank=True, verbose_name="南北推桿伸展長度(mm)",
+                                             help_text="南北方向推桿當前伸展長度")
+    
+    # 東西推桿數據
+    ew_actuator_angle = models.FloatField(null=True, blank=True, verbose_name="東西推桿角度(°)",
+                                         help_text="東西方向推桿當前角度")
+    ew_actuator_extension = models.FloatField(null=True, blank=True, verbose_name="東西推桿伸展長度(mm)",
+                                             help_text="東西方向推桿當前伸展長度")
+    
+    # ===== 舊版推桿欄位 (保留以確保向下相容) =====
+    actuator_voltage = models.FloatField(null=True, blank=True, verbose_name="推桿電壓(V)(舊)", 
+                                       help_text="[已棄用] 建議使用 actuator_total_voltage")
+    actuator_current = models.FloatField(null=True, blank=True, verbose_name="推桿電流(A)(舊)",
+                                       help_text="[已棄用] 建議使用 actuator_total_current")
+    actuator_power = models.FloatField(null=True, blank=True, verbose_name="推桿功率(W)(舊)",
+                                     help_text="[已棄用] 建議使用 actuator_total_power")
+    actuator_angle = models.FloatField(null=True, blank=True, verbose_name="推桿角度(°)(舊)",
+                                     help_text="[已棄用] 建議使用 ns_actuator_angle 或 ew_actuator_angle")
+    actuator_extension = models.FloatField(null=True, blank=True, verbose_name="推桿伸展長度(mm)(舊)",
+                                         help_text="[已棄用] 建議使用 ns_actuator_extension 或 ew_actuator_extension")
     
     # 記錄元數據
     notes = models.CharField(max_length=200, blank=True, verbose_name="備註")
@@ -70,7 +98,15 @@ class PowerRecord(models.Model):
         if not self.power_output and self.voltage and self.current:
             self.power_output = self.voltage * self.current
         
-        # 自動計算推桿功率（如果沒有提供）
+        # 自動計算樹莓派功率
+        if not self.raspberry_pi_power and self.raspberry_pi_voltage and self.raspberry_pi_current:
+            self.raspberry_pi_power = self.raspberry_pi_voltage * self.raspberry_pi_current
+        
+        # 自動計算推桿總功率
+        if not self.actuator_total_power and self.actuator_total_voltage and self.actuator_total_current:
+            self.actuator_total_power = self.actuator_total_voltage * self.actuator_total_current
+        
+        # [向下相容] 自動計算舊版推桿功率
         if not self.actuator_power and self.actuator_voltage and self.actuator_current:
             self.actuator_power = self.actuator_voltage * self.actuator_current
             

@@ -14,7 +14,7 @@ class PowerRecordSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = PowerRecord
-        fields = '__all__'
+        fields = '__all__'  # Include all fields including new dual actuator fields
 
 class RealTimeDataSerializer(serializers.Serializer):
     """接收樹莓派實時數據的專用序列化器"""

@@ -38,26 +38,53 @@ class SystemGroupAdmin(admin.ModelAdmin):
 
 @admin.register(PowerRecord) 
 class PowerRecordAdmin(admin.ModelAdmin):
-    list_display = ['system', 'timestamp', 'voltage', 'current', 'power_output', 'temperature']
-    # 修正：移除有問題的 timestamp__date 過濾器
-    list_filter = ['system']  
+    list_display = ['timestamp', 'system', 'voltage', 'current', 'power_output', 'temperature', 
+                    'raspberry_pi_power', 'actuator_total_power', 'ns_actuator_angle', 'ew_actuator_angle']
+    list_filter = ['system', 'timestamp']
     search_fields = ['system__name', 'notes']
-    date_hierarchy = 'timestamp'  # 這個會提供日期過濾功能
-    
-    readonly_fields = ['created_at']
+    date_hierarchy = 'timestamp'
+    ordering = ['-timestamp']
+    readonly_fields = ['created_at', 'power_output', 'raspberry_pi_power', 'actuator_total_power']
     
     fieldsets = (
-        ('基本資訊', {
+        ('系統資訊', {
             'fields': ('system', 'timestamp', 'notes')
         }),
-        ('電力數據', {
+        ('太陽能板發電數據', {
             'fields': ('voltage', 'current', 'power_output')
         }),
-        ('環境數據', {
-            'fields': ('light_intensity', 'temperature', 'humidity')
+        ('樹莓派電源', {
+            'fields': ('raspberry_pi_voltage', 'raspberry_pi_current', 'raspberry_pi_power'),
+            'classes': ('collapse',)
         }),
-        ('角度資訊', {
-            'fields': ('panel_azimuth', 'panel_tilt')
+        ('推桿總電源 (兩根加總)', {
+            'fields': ('actuator_total_voltage', 'actuator_total_current', 'actuator_total_power'),
+            'classes': ('collapse',)
+        }),
+        ('南北推桿', {
+            'fields': ('ns_actuator_angle', 'ns_actuator_extension'),
+            'classes': ('collapse',)
+        }),
+        ('東西推桿', {
+            'fields': ('ew_actuator_angle', 'ew_actuator_extension'),
+            'classes': ('collapse',)
+        }),
+        ('舊版推桿欄位 (已棄用)', {
+            'fields': ('actuator_voltage', 'actuator_current', 'actuator_power', 
+                      'actuator_angle', 'actuator_extension'),
+            'classes': ('collapse',)
+        }),
+        ('環境數據', {
+            'fields': ('light_intensity', 'temperature', 'humidity'),
+            'classes': ('collapse',)
+        }),
+        ('面板狀態', {
+            'fields': ('panel_azimuth', 'panel_tilt'),
+            'classes': ('collapse',)
+        }),
+        ('記錄元數據', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
         }),
     )
     
