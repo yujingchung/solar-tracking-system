@@ -107,6 +107,76 @@ class PowerRecordViewSet(viewsets.ModelViewSet):
                 {"error": f"伺服器錯誤: {str(e)}"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+    
+    @action(detail=False, methods=['get'])
+    def export_csv(self, request):
+        """匯出CSV格式的數據記錄"""
+        import csv
+        from django.http import HttpResponse
+        from datetime import datetime
+        
+        try:
+            system_id = request.query_params.get('system')
+            queryset = self.get_queryset()
+            
+            if system_id:
+                try:
+                    system_id = int(system_id)
+                    queryset = queryset.filter(system_id=system_id)
+                except (ValueError, TypeError):
+                    pass
+            
+            # 建立HTTP response with CSV content type
+            response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            response['Content-Disposition'] = f'attachment; filename="power_records_{timestamp}.csv"'
+            
+            writer = csv.writer(response)
+            
+            # CSV標頭
+            writer.writerow([
+                '時間戳',
+                '系統',
+                '太陽能板電壓(V)', '太陽能板電流(A)', '太陽能板功率(W)',
+                '樹莓派電壓(V)', '樹莓派電流(mA)', '樹莓派功率(W)',
+                '南北推桿角度(°)', '南北推桿伸展(mm)',
+                '東西推桿角度(°)', '東西推桿伸展(mm)',
+                '推桿總電壓(V)', '推桿總電流(mA)', '推桿總功率(W)',
+                '光照強度(lux)', '溫度(°C)', '濕度(%)',
+                '備註'
+            ])
+            
+            # 寫入數據
+            for record in queryset[:1000]:  # 限制最多1000筆
+                writer.writerow([
+                    record.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                    record.system.name if record.system else '',
+                    f"{record.voltage:.2f}" if record.voltage else '',
+                    f"{record.current:.3f}" if record.current else '',
+                    f"{record.power_output:.2f}" if record.power_output else '',
+                    f"{record.raspberry_pi_voltage:.2f}" if record.raspberry_pi_voltage else '',
+                    f"{record.raspberry_pi_current * 1000:.1f}" if record.raspberry_pi_current else '',
+                    f"{record.raspberry_pi_power:.2f}" if record.raspberry_pi_power else '',
+                    f"{record.ns_actuator_angle:.1f}" if record.ns_actuator_angle else '',
+                    f"{record.ns_actuator_extension:.0f}" if record.ns_actuator_extension else '',
+                    f"{record.ew_actuator_angle:.1f}" if record.ew_actuator_angle else '',
+                    f"{record.ew_actuator_extension:.0f}" if record.ew_actuator_extension else '',
+                    f"{record.actuator_total_voltage:.2f}" if record.actuator_total_voltage else '',
+                    f"{record.actuator_total_current * 1000:.1f}" if record.actuator_total_current else '',
+                    f"{record.actuator_total_power:.2f}" if record.actuator_total_power else '',
+                    f"{record.light_intensity:.1f}" if record.light_intensity else '',
+                    f"{record.temperature:.1f}" if record.temperature else '',
+                    f"{record.humidity:.1f}" if record.humidity else '',
+                    record.notes or ''
+                ])
+            
+            return response
+            
+        except Exception as e:
+            return Response(
+                {"error": f"匯出失敗: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class RealTimeDataViewSet(viewsets.ViewSet):
     """專門處理樹莓派實時數據的API"""
@@ -142,7 +212,25 @@ class RealTimeDataViewSet(viewsets.ViewSet):
                     notes=data.get('notes', '')
                 )
                 
-                # 新增：添加推桿相關數據
+                # 樹莓派電源數據
+                power_record.raspberry_pi_voltage = data.get('raspberry_pi_voltage')
+                power_record.raspberry_pi_current = data.get('raspberry_pi_current')
+                power_record.raspberry_pi_power = data.get('raspberry_pi_power')
+                
+                # 南北推桿
+                power_record.ns_actuator_angle = data.get('ns_actuator_angle')
+                power_record.ns_actuator_extension = data.get('ns_actuator_extension')
+                
+                # 東西推桿
+                power_record.ew_actuator_angle = data.get('ew_actuator_angle')
+                power_record.ew_actuator_extension = data.get('ew_actuator_extension')
+                
+                # 推桿總功率
+                power_record.actuator_total_voltage = data.get('actuator_total_voltage')
+                power_record.actuator_total_current = data.get('actuator_total_current')
+                power_record.actuator_total_power = data.get('actuator_total_power')
+                
+                # 舊版推桿欄位（保留向下相容）
                 power_record.actuator_voltage = data.get('actuator_voltage')
                 power_record.actuator_current = data.get('actuator_current')
                 power_record.actuator_power = data.get('actuator_power')

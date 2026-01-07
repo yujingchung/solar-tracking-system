@@ -34,7 +34,25 @@ class RealTimeDataSerializer(serializers.Serializer):
     panel_azimuth = serializers.FloatField(required=False, allow_null=True)
     panel_tilt = serializers.FloatField(required=False, allow_null=True)
     
-    # 新增：推桿相關數據
+    # 樹莓派電源
+    raspberry_pi_voltage = serializers.FloatField(required=False, allow_null=True)
+    raspberry_pi_current = serializers.FloatField(required=False, allow_null=True)
+    raspberry_pi_power = serializers.FloatField(required=False, allow_null=True)
+    
+    # 南北推桿
+    ns_actuator_angle = serializers.FloatField(required=False, allow_null=True)
+    ns_actuator_extension = serializers.FloatField(required=False, allow_null=True)
+    
+    # 東西推桿
+    ew_actuator_angle = serializers.FloatField(required=False, allow_null=True)
+    ew_actuator_extension = serializers.FloatField(required=False, allow_null=True)
+    
+    # 推桿總功率
+    actuator_total_voltage = serializers.FloatField(required=False, allow_null=True)
+    actuator_total_current = serializers.FloatField(required=False, allow_null=True)
+    actuator_total_power = serializers.FloatField(required=False, allow_null=True)
+    
+    # 舊版推桿相關數據（保留向下相容）
     actuator_voltage = serializers.FloatField(required=False, allow_null=True)
     actuator_current = serializers.FloatField(required=False, allow_null=True)
     actuator_power = serializers.FloatField(required=False, allow_null=True)
