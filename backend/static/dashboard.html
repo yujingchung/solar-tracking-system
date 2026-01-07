@@ -557,7 +557,7 @@
                     const rpiCurrentEl = document.getElementById(`${elementPrefix}-rpi-current`);
                     const rpiPowerEl = document.getElementById(`${elementPrefix}-rpi-power`);
                     if (rpiVoltageEl) rpiVoltageEl.textContent = data.raspberry_pi_voltage ? data.raspberry_pi_voltage.toFixed(2) : '--';
-                    if (rpiCurrentEl) rpiCurrentEl.textContent = data.raspberry_pi_current ? (data.raspberry_pi_current * 1000).toFixed(1) : '--';
+                    if (rpiCurrentEl) rpiCurrentEl.textContent = data.raspberry_pi_current ? data.raspberry_pi_current.toFixed(1) : '--';
                     if (rpiPowerEl) rpiPowerEl.textContent = data.raspberry_pi_power ? data.raspberry_pi_power.toFixed(2) : '--';
 
                     // 4. 更新南北推桿
@@ -577,7 +577,7 @@
                     const actTotalCEl = document.getElementById(`${elementPrefix}-actuator-total-current`);
                     const actTotalPEl = document.getElementById(`${elementPrefix}-actuator-total-power`);
                     if (actTotalVEl) actTotalVEl.textContent = data.actuator_total_voltage ? data.actuator_total_voltage.toFixed(2) : '--';
-                    if (actTotalCEl) actTotalCEl.textContent = data.actuator_total_current ? (data.actuator_total_current * 1000).toFixed(1) : '--';
+                    if (actTotalCEl) actTotalCEl.textContent = data.actuator_total_current ? data.actuator_total_current.toFixed(1) : '--';
                     if (actTotalPEl) actTotalPEl.textContent = data.actuator_total_power ? data.actuator_total_power.toFixed(2) : '--';
 
                     console.log('Data received:', {
