@@ -25,7 +25,7 @@ API_BASE_URL = "http://140.114.59.214:8000/api"
 SYSTEM_ID = 1  # 請修改為你系統的 ID（從 Django admin 查看）
 
 # 數據上傳設定
-UPLOAD_INTERVAL = 1.0  # 每秒上傳一次（可調整）
+UPLOAD_INTERVAL = 5.0  # 每秒上傳一次（可調整）
 UPLOAD_ENABLED = True  # 是否啟用上傳功能
 
 # ==================== GPIO定義 ====================
@@ -684,8 +684,8 @@ try:
             
             # 記錄到CSV和上傳
             # TODO: 這裡應該讀取實際的太陽能板電壓電流，目前使用假數據
-            panel_voltage = 24.0
-            panel_current = 0.5
+            panel_voltage = 0.1
+            panel_current = 0.1
             
             logger.log(az_data, tilt_data, ch1_formatted, ch2_formatted, 
                       panel_voltage, panel_current)
