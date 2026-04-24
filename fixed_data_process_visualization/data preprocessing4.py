@@ -747,7 +747,7 @@ if __name__ == "__main__":
     processor = SolarAngleDataProcessor()
 
     # 導入CSV文件，清空現有數據
-    processor.import_csv_files(r'D:\宇靖\先鋒\太陽能板採集數據\20260210_0219\已重命名', clear_existing=True)
+    processor.import_csv_files(r'D:\宇靖\先鋒\太陽能板採集數據\20260401_0406\已重命名', clear_existing=True)
 
     # 處理數據，覆蓋舊記錄，過濾太陽方位角
     processor.process_data(overwrite=True, filter_azimuth=False)
@@ -756,13 +756,13 @@ if __name__ == "__main__":
     processor.remove_duplicates()
 
     # 導入照度資料（可以是單個文件或整個目錄）
-    processor.import_illumination_data(r'D:\宇靖\先鋒\太陽能板採集數據\照度\solar.radiation-v2_20260219.csv')
+    processor.import_illumination_data(r'D:\宇靖\先鋒\太陽能板採集數據\照度\solar.radiation-v2_20260407.csv')
 
     # 計算15分鐘平均值
     #processor.calculate_15min_averages(overwrite=True)
 
     # 指定輸出目錄
-    output_dir = r'D:\宇靖\先鋒\太陽能板採集數據\20260210_0219\已重命名'
+    output_dir = r'D:\宇靖\先鋒\太陽能板採集數據\20260401_0406\已重命名'
 
     # 確保輸出目錄存在
     import os

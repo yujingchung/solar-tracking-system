@@ -54,7 +54,7 @@ class SolarDataAnalyzer:
         else:
             # 範例檔案路徑
             try:
-                file_path = r'D:\宇靖\先鋒\太陽能板採集數據\20250301_20260219\combined_solar_data_20250301_20260219.csv'
+                file_path = r'D:\宇靖\先鋒\太陽能板採集數據\20250301_20260406\combined_solar_data_20250301_20260406.csv'
                 self.load_data(file_path)
             except:
                 messagebox.showerror("錯誤", "找不到預設數據文件，請重新指定文件路徑")

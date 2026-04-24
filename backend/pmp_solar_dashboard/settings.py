@@ -8,13 +8,22 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'your-default-secret-key')
 DEBUG = int(os.environ.get('DEBUG', default=0))
 YOUR_PUBLIC_IP = "140.114.59.214"  # 替換為實際IP
 YOUR_LOCAL_IP = "192.168.0.100"
-ALLOWED_HOSTS = [
+_allowed_hosts_env = os.environ.get('DJANGO_ALLOWED_HOSTS', '')
+ALLOWED_HOSTS = _allowed_hosts_env.split() if _allowed_hosts_env else [
     'localhost',
-    '127.0.0.1', 
+    '127.0.0.1',
     '192.168.0.124',
-    YOUR_PUBLIC_IP, # 192.168.0.100  # 你的公網IP
-    YOUR_LOCAL_IP,     
+    YOUR_PUBLIC_IP,
+    YOUR_LOCAL_IP,
 ]
+# 永遠允許 Tailscale Funnel hostname（無論 env 怎麼設都生效）
+_ts_host = 'solar-dashboard.tail7c1eb9.ts.net'
+if _ts_host not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_ts_host)
+
+# HTTPS 來源白名單（CSRF 保護用），從環境變數讀取
+_csrf_env = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
+CSRF_TRUSTED_ORIGINS = _csrf_env.split() if _csrf_env else []
 
 #DEBUG = False  # 生產環境設定
 # 應用程式
@@ -111,6 +120,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://140.114.59.214:8000",
     "http://192.168.0.100:3000",
     "http://192.168.0.100:8000",
+    "https://solar-dashboard.tail7c1eb9.ts.net",
 ]
 
 # 認證設定

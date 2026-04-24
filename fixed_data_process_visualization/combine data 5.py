@@ -136,8 +136,8 @@ def merge_multiple_csvs(file_paths=None, folder_path=None, output_filename=None)
 if __name__ == "__main__":
     # 方法1：指定多個檔案路徑
     file_paths = [
-        r"D:\宇靖\先鋒\太陽能板採集數據\20250301_20260209\combined_solar_data_20250301_20260209.csv",
-        r"D:\宇靖\先鋒\太陽能板採集數據\20260210_0219\已重命名\complete_solar_data.csv",
+        r"D:\宇靖\先鋒\太陽能板採集數據\20250301_20260331\combined_solar_data_20250301_20260331.csv",
+        r"D:\宇靖\先鋒\太陽能板採集數據\20260401_0406\已重命名\complete_solar_data.csv",
 
         # 可以繼續添加更多檔案路徑
         # r"路徑3.csv",
@@ -148,7 +148,7 @@ if __name__ == "__main__":
     print("=== 方法1：使用指定檔案列表 ===")
     result = merge_multiple_csvs(
         file_paths=file_paths,
-        output_filename="combined_solar_data_20250301_20260219.csv"
+        output_filename="combined_solar_data_20250301_20260331.csv"
     )
 
     # ==========================================

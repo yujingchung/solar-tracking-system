@@ -28,3 +28,9 @@ mysql/
 # 作業系統
 .DS_Store
 Thumbs.db
+# 大型資料檔（不放 GitHub）
+data/
+*.csv
+
+# Word 文件
+*.docx

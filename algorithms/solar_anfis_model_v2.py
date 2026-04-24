@@ -120,7 +120,7 @@ class SimpleFuzzyLayer(Layer):
         return (input_shape[0], input_shape[1], self.num_mfs)
 
 
-def build_simple_anfis_model(input_dim, num_mfs=9):
+def build_simple_anfis_model(input_dim, num_mfs=7):
     """建立改進的ANFIS模型"""
     inputs = Input(shape=(input_dim,))
 
@@ -374,9 +374,10 @@ def main(file_path=None):
     print(f"\n=== 建立ANFIS模型 ===")
     print(f"特徵配置: {'包含照度' if has_illumination else '僅時間+角度'}")
     print(f"輸入維度: {X_train_scaled.shape[1]}")
-    print(f"模糊集數量: 11")
+    NUM_MFS = 7   # 每個輸入變數的高斯歸屬函數數量
+    print(f"模糊集數量: {NUM_MFS}")
 
-    anfis_model = build_simple_anfis_model(input_dim=X_train_scaled.shape[1], num_mfs=11)
+    anfis_model = build_simple_anfis_model(input_dim=X_train_scaled.shape[1], num_mfs=NUM_MFS)
     anfis_model.summary()
 
     # === 13. 訓練配置 ===
@@ -406,12 +407,24 @@ def main(file_path=None):
 
     # === 14. 開始訓練 ===
     print(f"\n=== 開始訓練模型 ===")
+
+    # 🔥 Sample Weighting：讓高功率樣本（真正需要選角度的時刻）有更高的訓練權重
+    # 低功率時（早晚/陰天）各角度發電量幾乎相同，不需要模型花太多資源在這裡
+    # power^0.7：非線性縮放，避免 300W 樣本的權重是 30W 的 1000 倍（太極端）
+    sample_weights = np.power(y_train_original / (y_train_original.mean() + 1e-8), 0.7)
+    sample_weights = np.clip(sample_weights, 0.2, 5.0)   # 限制在 0.2~5 倍之間
+    print(f"樣本權重範圍: {sample_weights.min():.2f} ~ {sample_weights.max():.2f}")
+    print(f"低功率(<50W)平均權重 : {sample_weights[y_train_original < 50].mean():.2f}")
+    print(f"中功率(100-200W)平均權重: {sample_weights[(y_train_original >= 100) & (y_train_original < 200)].mean():.2f}")
+    print(f"高功率(>200W)平均權重 : {sample_weights[y_train_original >= 200].mean():.2f}")
+
     history = anfis_model.fit(
         X_train_scaled, y_train_original,
         epochs=800,
         batch_size=1024,
         validation_split=0.2,
         callbacks=callbacks,
+        sample_weight=sample_weights,   # 🔥 高功率樣本多學幾遍
         verbose=1
     )
 
@@ -548,7 +561,7 @@ def main(file_path=None):
         'has_illumination': has_illumination,
         'feature_columns': feature_columns,
         'input_dim': len(feature_columns),
-        'num_mfs': 11,
+        'num_mfs': NUM_MFS,   # 實際使用的 MF 數量（build_simple_anfis_model 的 num_mfs 參數）
         'training_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'performance': {
             'rmse': float(rmse),

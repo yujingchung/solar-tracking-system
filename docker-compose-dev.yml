@@ -26,8 +26,35 @@ services:
     env_file:
       - ./.env.dev
     ports:
-      - 8000:8000
+      - 8000:8000   # 本機測試用；Tailscale Funnel 也會透過 docker 內部網路代理
     depends_on:
       - db
-    links:
-      - db
+      - tailscale
+
+  tailscale:
+    container_name: solar_tailscale
+    image: tailscale/tailscale:latest
+    hostname: solar-dashboard          # 決定你的 Tailscale 機器名稱
+    restart: unless-stopped
+    environment:
+      # TS_AUTHKEY：到 https://login.tailscale.com/admin/settings/keys 產生
+      # 建議勾選 Reusable + No expiry，貼入 .env.dev 的 TS_AUTHKEY=tskey-auth-xxxxx
+      - TS_AUTHKEY=${TS_AUTHKEY}
+      # Funnel 需要帳號開啟此功能（Admin console → DNS → HTTPS Certificates 要啟用）
+      - TS_EXTRA_ARGS=--advertise-tags=tag:container
+      # 指向 serve.json，Tailscale 會自動設定 Funnel
+      - TS_SERVE_CONFIG=/config/serve.json
+      - TS_STATE_DIR=/var/lib/tailscale
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+      - ./tailscale-config:/config:ro
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - net_admin
+      - sys_module
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv6.conf.all.forwarding=1
+
+volumes:
+  tailscale-state:

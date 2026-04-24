@@ -169,7 +169,7 @@ def batch_rename_files(base_directory):
 # 使用範例
 if __name__ == "__main__":
     # 使用原始字串（在字串前加上 r）來避免轉義字元問題
-    directory_path = r"D:\宇靖\先鋒\太陽能板採集數據\20260210_0219"
+    directory_path = r"D:\宇靖\先鋒\太陽能板採集數據\20260401_0406"
 
     # 輸出當前處理的目錄
     print(f"正在處理目錄: {directory_path}")

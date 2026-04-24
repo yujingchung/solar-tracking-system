@@ -95,5 +95,5 @@ def batch_process_folder(folder_path):
 
 
 # 使用範例
-folder_path = r'D:\宇靖\先鋒\太陽能板採集數據\20260210_0219\已重命名'  # 替換成您的資料夾路徑
+folder_path = r'D:\宇靖\先鋒\太陽能板採集數據\20260401_0406\已重命名'  # 替換成您的資料夾路徑
 batch_process_folder(folder_path)

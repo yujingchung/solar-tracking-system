@@ -240,5 +240,5 @@ def create_power_summary(base_folder):
 
 if __name__ == "__main__":
     # 使用範例
-    base_folder = r'D:\宇靖\先鋒\太陽能板採集數據\20260210_0219\已重命名'  # 替換成您的資料夾路徑
+    base_folder = r'D:\宇靖\先鋒\太陽能板採集數據\20260401_0406\已重命名'  # 替換成您的資料夾路徑
     create_power_summary(base_folder)

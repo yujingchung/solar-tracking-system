@@ -79,8 +79,10 @@ class ConfigManager:
     
     def __init__(self, config_dir: Optional[str] = None):
         if config_dir is None:
-            # 預設配置目錄為raspberry-pi/config
-            self.config_dir = Path(__file__).parent.parent / "config"
+            # 預設配置目錄為 raspberry-pi/config/（統一位置，與 data_collector 共用）
+            # __file__ = raspberry-pi/src/utils/config_manager.py
+            # .parent.parent.parent = raspberry-pi/
+            self.config_dir = Path(__file__).parent.parent.parent / "config"
         else:
             self.config_dir = Path(config_dir)
         
