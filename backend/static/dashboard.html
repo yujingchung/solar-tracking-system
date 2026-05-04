@@ -1,751 +1,1445 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>太陽能追日系統多案場監控</title>
-
+    <title>追日系統監控 · 先鋒金土地公廟</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
-        body {
-            background-color: #f0f2f5;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-        }
-
-        /* 卡片特效 */
-        .card {
-            border: none;
-            border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            transition: transform 0.2s, box-shadow 0.2s;
-            margin-bottom: 20px;
-        }
-
-        /* 滑鼠移過卡片時浮起 */
-        .site-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-            cursor: pointer;
-        }
-
-        /* 數值標籤樣式 */
-        .stat-label {
-            color: #6c757d;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 5px;
-        }
-
-        .stat-value {
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: #2c3e50;
-        }
-
-        .unit {
-            font-size: 0.9rem;
-            color: #adb5bd;
-            font-weight: 500;
-        }
-
-        /* 四方位光照卡片樣式 */
-        .sun-card {
-            background: #fff;
-            border-left: 4px solid #ffc107;
-            /* 黃色邊條 */
-        }
-
-        /* 推桿耗能卡片特別樣式 */
-        .energy-card {
-            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-            border: 1px solid #90caf9;
-        }
-
-        /* 狀態燈號 */
-        .status-badge {
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.85em;
-            font-weight: 600;
-        }
-
-        .status-online {
-            background-color: #d1e7dd;
-            color: #0f5132;
-        }
-
-        .status-offline {
-            background-color: #f8d7da;
-            color: #842029;
-        }
-
-        /* 導覽列樣式優化 */
-        .nav-pills .nav-link {
-            color: #495057;
-            border-radius: 8px;
-            margin-right: 10px;
-            padding: 10px 20px;
-            font-weight: 500;
-        }
-
-        .nav-pills .nav-link.active {
-            background-color: #0d6efd;
-            color: white;
-            box-shadow: 0 4px 6px rgba(13, 110, 253, 0.3);
-        }
+        :root{--c-solar:#f59e0b;--c-navy:#0f172a;--c-exp1:#3b82f6;--c-exp2:#60a5fa;--c-ctrl1:#10b981;--c-ctrl2:#34d399;--c-bg:#f1f5f9;--c-card:#fff;--c-muted:#94a3b8;--c-border:#e2e8f0;--radius:14px;--shadow:0 1px 3px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.06)}
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        body{background:var(--c-bg);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:#1e293b;min-height:100vh}
+        .app-header{background:linear-gradient(135deg,#0f172a 0%,#1a2f50 100%);color:#fff;padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;box-shadow:0 2px 16px rgba(0,0,0,.3)}
+        .hdr-logo{display:flex;align-items:center;gap:14px}
+        .hdr-logo i{color:var(--c-solar);font-size:1.5rem}
+        .hdr-logo h1{font-size:1.05rem;font-weight:700;letter-spacing:-.3px}
+        .hdr-logo small{font-size:.72rem;color:#94a3b8;display:block;margin-top:1px}
+        .live-clock{text-align:right;line-height:1.4}
+        .live-clock .lc-date{font-size:.72rem;color:#94a3b8}
+        .live-clock .lc-time{font-size:1rem;font-weight:700;color:#e2e8f0}
+        .status-strip{background:#0d1b2e;padding:6px 24px;display:flex;gap:10px;overflow-x:auto;border-bottom:1px solid rgba(255,255,255,.05)}
+        .status-strip::-webkit-scrollbar{height:3px}
+        .status-pill{display:flex;align-items:center;gap:7px;padding:4px 14px 4px 10px;background:rgba(255,255,255,.06);border-radius:100px;cursor:pointer;white-space:nowrap;border:1px solid rgba(255,255,255,.09);transition:background .15s;flex-shrink:0}
+        .status-pill:hover{background:rgba(255,255,255,.13)}
+        .status-dot{width:8px;height:8px;border-radius:50%;background:#475569;flex-shrink:0}
+        .status-dot.online{background:#22c55e;animation:pulse-g 2s infinite}
+        @keyframes pulse-g{0%{box-shadow:0 0 0 0 rgba(34,197,94,.5)}70%{box-shadow:0 0 0 6px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
+        .pill-name{font-size:.75rem;font-weight:600;color:#cbd5e1}
+        .pill-power{font-size:.82rem;font-weight:700}
+        .main-nav{background:#fff;border-bottom:1px solid var(--c-border);padding:0 20px;display:flex;overflow-x:auto;position:sticky;top:64px;z-index:100;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+        .main-nav::-webkit-scrollbar{height:3px}
+        .tab-btn{padding:14px 18px;border:none;background:none;font-size:.875rem;font-weight:500;color:#64748b;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap;transition:color .15s}
+        .tab-btn:hover{color:#1e293b;background:#f8fafc}
+        .tab-btn.active{font-weight:700;color:#0f172a}
+        .tab-btn.t-ov.active{border-bottom-color:var(--c-solar)}
+        .tab-btn.t-exp.active{border-bottom-color:var(--c-exp1)}
+        .tab-btn.t-ctrl.active{border-bottom-color:var(--c-ctrl1)}
+        .tab-btn.t-cmp.active{border-bottom-color:#8b5cf6}
+        .tab-btn.t-fp.active{border-bottom-color:#059669}
+        .tab-btn.t-csv.active{border-bottom-color:#7c3aed}
+        .tab-btn.t-z3a.active{border-bottom-color:#e11d48}
+        .main-content{padding:20px 24px;max-width:1440px;margin:0 auto}
+        .tab-pane{display:none}
+        .tab-pane.active{display:block;animation:fadeIn .2s ease}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+        .card{background:var(--c-card);border-radius:var(--radius);box-shadow:var(--shadow);border:none;overflow:hidden}
+        .card-hdr{padding:14px 18px;border-bottom:1px solid var(--c-border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+        .card-hdr h6{margin:0;font-weight:700;font-size:.875rem;display:flex;align-items:center;gap:8px}
+        .sys-card{cursor:pointer;transition:transform .2s,box-shadow .2s}
+        .sys-card:hover{transform:translateY(-3px);box-shadow:0 8px 30px rgba(0,0,0,.1)}
+        .acc-line{height:4px}
+        .c-exp1 .acc-line{background:var(--c-exp1)}.c-exp2 .acc-line{background:var(--c-exp2)}
+        .c-ctrl1 .acc-line{background:var(--c-ctrl1)}.c-ctrl2 .acc-line{background:var(--c-ctrl2)}
+        .power-num{font-size:2.5rem;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+        .power-unit{font-size:.85rem;color:var(--c-muted);font-weight:500}
+        .mtile{background:#f8fafc;border-radius:10px;padding:12px 14px;text-align:center}
+        .mlabel{font-size:.68rem;color:var(--c-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
+        .mval{font-size:1.2rem;font-weight:700;color:#0f172a}
+        .mval.sm{font-size:.95rem}
+        .munit{font-size:.72rem;color:var(--c-muted);margin-left:2px}
+        .badge-exp{background:#eff6ff;color:var(--c-exp1);font-size:.68rem;font-weight:700;padding:2px 9px;border-radius:100px;border:1px solid #bfdbfe}
+        .badge-ctrl{background:#f0fdf4;color:#059669;font-size:.68rem;font-weight:700;padding:2px 9px;border-radius:100px;border:1px solid #bbf7d0}
+        .ob{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:100px;font-size:.73rem;font-weight:700}
+        .ob .dot{width:6px;height:6px;border-radius:50%}
+        .ob-on{background:#dcfce7;color:#15803d}.ob-on .dot{background:#22c55e}
+        .ob-off{background:#f1f5f9;color:#94a3b8}.ob-off .dot{background:#94a3b8}
+        .compass-wrap{display:grid;grid-template-areas:". n ." "w c e" ". s .";grid-template-columns:1fr 1fr 1fr;gap:6px}
+        .c-n{grid-area:n}.c-e{grid-area:e}.c-w{grid-area:w}.c-s{grid-area:s}
+        .c-c{grid-area:c;background:#fef3c7!important;border-color:#fde68a!important}
+        .compass-cell{background:#f8fafc;border-radius:8px;padding:8px 4px;text-align:center;border:1px solid var(--c-border)}
+        .cdir{font-size:.62rem;color:var(--c-muted);font-weight:700;text-transform:uppercase}
+        .clux{font-size:.9rem;font-weight:700;color:#92400e;margin-top:2px}
+        .act-wrap{background:#e2e8f0;border-radius:6px;height:8px;overflow:hidden}
+        .act-fill{height:100%;border-radius:6px;transition:width .5s ease}
+        .data-table{width:100%;border-collapse:separate;border-spacing:0;font-size:.82rem}
+        .data-table thead th{background:#f8fafc;padding:9px 12px;font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:#64748b;border-bottom:1px solid var(--c-border);position:sticky;top:0}
+        .data-table tbody td{padding:9px 12px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+        .data-table tbody tr:hover td{background:#f8fafc}
+        .data-table tbody tr:last-child td{border-bottom:none}
+        .ts-label{font-size:.72rem;color:var(--c-muted)}
+        ::-webkit-scrollbar{width:5px;height:5px}
+        ::-webkit-scrollbar-track{background:transparent}
+        ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
     </style>
 </head>
+<body>
+<header class="app-header">
+    <div class="hdr-logo">
+        <i class="fas fa-solar-panel"></i>
+        <div><h1>太陽能追日系統監控平台</h1>
+        <small>先鋒金土地公廟 &nbsp;·&nbsp; 25.10°N, 121.43°E &nbsp;·&nbsp; 新北市</small></div>
+    </div>
+    <div class="live-clock">
+        <div class="lc-date" id="hdr-date">--</div>
+        <div class="lc-time" id="hdr-time">--:--:--</div>
+    </div>
+</header>
+<div class="status-strip" id="status-strip"></div>
+<nav class="main-nav">
+    <button class="tab-btn t-ov active" onclick="switchTab('overview')"><i class="fas fa-th-large me-1"></i>總覽</button>
+    <button class="tab-btn t-exp" onclick="switchTab('sys-1')"><i class="fas fa-bolt me-1" style="color:var(--c-exp1)"></i>實驗組 I</button>
+    <button class="tab-btn t-exp" onclick="switchTab('sys-2')"><i class="fas fa-bolt me-1" style="color:var(--c-exp2)"></i>實驗組 II</button>
+    <button class="tab-btn t-ctrl" onclick="switchTab('sys-3')"><i class="fas fa-sun me-1" style="color:var(--c-ctrl1)"></i>對照組 I</button>
+    <button class="tab-btn t-ctrl" onclick="switchTab('sys-4')"><i class="fas fa-sun me-1" style="color:var(--c-ctrl2)"></i>對照組 II</button>
+    <button class="tab-btn t-cmp" onclick="switchTab('compare')"><i class="fas fa-chart-line me-1" style="color:#8b5cf6"></i>發電比較</button>
+    <button class="tab-btn t-fp" onclick="switchTab('fixed-panels')"><i class="fas fa-border-all me-1" style="color:#059669"></i>固定式面板</button>
+    <button class="tab-btn t-csv" onclick="switchTab('csv-analysis')"><i class="fas fa-file-csv me-1" style="color:#7c3aed"></i>CSV 分析</button>
+    <button class="tab-btn t-z3a" onclick="switchTab('z3a')"><i class="fas fa-broadcast-tower me-1" style="color:#e11d48"></i>Z3A 採集</button>
+</nav>
+<div class="main-content">
 
-<body class="py-4">
-    <div class="container-fluid container-xl">
-        <div class="text-center mb-5">
-            <h1 class="fw-bold text-dark">太陽能追日系統多案場監控</h1>
-            <p class="text-muted">即時監控各案場發電效能與系統狀態</p>
-        </div>
-
-        <div class="card p-3 mb-4">
-            <ul class="nav nav-pills" id="mainTab" role="tablist">
-                <li class="nav-item">
-                    <button class="nav-link active" onclick="switchTab('overview')">總覽</button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link" onclick="switchTab('test-system')">測試系統</button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link" onclick="switchTab('jintudi-traditional')">金土地公廟(傳統)</button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link" onclick="switchTab('jintudi-smart')">金土地公廟(智能)</button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link" onclick="switchTab('eng1-traditional')">工程一館(傳統)</button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link" onclick="switchTab('eng1-smart')">工程一館(智能)</button>
-                </li>
-            </ul>
-        </div>
-
-        <div class="tab-content">
-
-            <div id="overview" class="tab-pane fade show active">
-                <div class="row g-4 mb-4">
-                    <div class="col-md-6 col-lg-4">
-                        <div class="card site-card h-100 p-3" onclick="switchTab('test-system')">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h5 class="m-0 fw-bold">測試系統</h5>
-                                <span class="status-badge status-online" id="overview-test-status">運行中</span>
-                            </div>
-                            <div class="text-center py-3">
-                                <div class="stat-value text-primary"><span id="overview-test-power">--</span>
-                                    <small>W</small>
-                                </div>
-                                <div class="stat-label">即時功率</div>
-                            </div>
-                            <div class="text-end text-muted small">
-                                更新: <span id="overview-test-update">--</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-md-6 col-lg-4">
-                        <div class="card site-card h-100 p-3" onclick="switchTab('jintudi-traditional')">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h5 class="m-0 fw-bold">金土地公廟-傳統</h5>
-                                <span class="status-badge status-offline">準備中</span>
-                            </div>
-                            <div class="text-center py-3">
-                                <div class="stat-value text-secondary">-- <small>W</small></div>
-                                <div class="stat-label">即時功率</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card p-4">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h4 class="m-0">所有案場數據記錄</h4>
-                        <div>
-                            <button class="btn btn-primary btn-sm me-2" onclick="refreshAllSites()"><i
-                                    class="fas fa-sync-alt me-1"></i> 刷新</button>
-                            <button class="btn btn-outline-secondary btn-sm" onclick="exportAllData()"><i
-                                    class="fas fa-download me-1"></i> 匯出</button>
-                        </div>
-                    </div>
-                    <!-- 日期範圍選擇器 -->
-                    <div class="mb-3">
-                        <label class="form-label small text-muted"><i class="fas fa-calendar-alt me-1"></i>
-                            資料範圍:</label>
-                        <select id="date-range-selector" class="form-select form-select-sm"
-                            style="width: auto; display: inline-block;" onchange="onDateRangeChange()">
-                            <option value="7" selected>最近 7 天</option>
-                            <option value="30">最近 30 天</option>
-                            <option value="90">最近 90 天</option>
-                            <option value="all">全部資料</option>
-                        </select>
-                        <span class="ms-2 small text-muted" id="data-count-info">載入中...</span>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>系統名稱</th>
-                                    <th>時間</th>
-                                    <th>功率 (W)</th>
-                                    <th>電壓 (V)</th>
-                                    <th>電流 (A)</th>
-                                    <th>光照 (lux)</th>
-                                </tr>
-                            </thead>
-                            <tbody id="all-sites-table-body">
-                                <tr>
-                                    <td colspan="6" class="text-center py-4 text-muted">載入中...</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="d-flex justify-content-center align-items-center mt-3">
-                        <button class="btn btn-outline-secondary btn-sm" onclick="prevPage()" id="prev-btn"><i
-                                class="fas fa-chevron-left"></i> 上一頁</button>
-                        <span class="mx-3 text-muted">第 <span id="current-page">1</span> / <span
-                                id="total-pages">1</span> 頁 (共 <span id="total-count">0</span> 筆)</span>
-                        <button class="btn btn-outline-secondary btn-sm" onclick="nextPage()" id="next-btn">下一頁 <i
-                                class="fas fa-chevron-right"></i></button>
-                    </div>
-                </div>
-            </div>
-
-            <div id="test-system" class="tab-pane fade" style="display: none;">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h3 class="fw-bold">測試系統詳細數據</h3>
-                    <div class="d-flex gap-2 mb-3">
-                        <button class="btn btn-primary" onclick="refreshSiteData('test', 1)">
-                            <i class="fas fa-sync-alt me-2"></i>立即刷新
-                        </button>
-                        <a href="/api/power-records/export_csv/?system=1" class="btn btn-success" download>
-                            <i class="fas fa-file-download me-2"></i>匯出數據
-                        </a>
-                    </div>
-                </div>
-
-                <div class="row g-4">
-                    <div class="col-lg-6">
-                        <div class="card h-100">
-                            <div class="card-header bg-white border-0 pt-3">
-                                <h5 class="card-title fw-bold"><i
-                                        class="fas fa-solar-panel text-warning me-2"></i>發電與環境光照</h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="row g-3">
-                                    <div class="col-12">
-                                        <div class="p-3 bg-light rounded text-center mb-2">
-                                            <div class="stat-label">太陽能板發電功率</div>
-                                            <div class="stat-value text-warning"><span id="test-power">--</span>
-                                                <small>W</small>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="col-12">
-                                        <label class="small text-muted mb-2 d-block">四方位光照強度 (lux)</label>
-                                        <div class="row g-2">
-                                            <div class="col-3">
-                                                <div class="p-2 border rounded sun-card text-center">
-                                                    <div class="small fw-bold">東 (E)</div>
-                                                    <div class="fw-bold mt-1" id="test-light-east">--</div>
-                                                </div>
-                                            </div>
-                                            <div class="col-3">
-                                                <div class="p-2 border rounded sun-card text-center">
-                                                    <div class="small fw-bold">西 (W)</div>
-                                                    <div class="fw-bold mt-1" id="test-light-west">--</div>
-                                                </div>
-                                            </div>
-                                            <div class="col-3">
-                                                <div class="p-2 border rounded sun-card text-center">
-                                                    <div class="small fw-bold">南 (S)</div>
-                                                    <div class="fw-bold mt-1" id="test-light-south">--</div>
-                                                </div>
-                                            </div>
-                                            <div class="col-3">
-                                                <div class="p-2 border rounded sun-card text-center">
-                                                    <div class="small fw-bold">北 (N)</div>
-                                                    <div class="fw-bold mt-1" id="test-light-north">--</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="col-6">
-                                        <div class="p-2 bg-light rounded text-center">
-                                            <small class="text-muted">電壓</small>
-                                            <div class="fw-bold"><span id="test-voltage">--</span> V</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="p-2 bg-light rounded text-center">
-                                            <small class="text-muted">電流</small>
-                                            <div class="fw-bold"><span id="test-current">--</span> A</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-6">
-                        <div class="card h-100">
-                            <div class="card-header bg-white border-0 pt-3">
-                                <h5 class="card-title fw-bold"><i class="fas fa-microchip text-success me-2"></i>樹莓派監控
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="row g-2">
-                                    <div class="col-4">
-                                        <div class="p-2 bg-light rounded text-center">
-                                            <small class="text-muted">電壓</small>
-                                            <div class="fw-bold"><span id="test-rpi-voltage">--</span> V</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-4">
-                                        <div class="p-2 bg-light rounded text-center">
-                                            <small class="text-muted">電流</small>
-                                            <div class="fw-bold"><span id="test-rpi-current">--</span> mA</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-4">
-                                        <div class="p-2 bg-light rounded text-center">
-                                            <small class="text-muted">功率</small>
-                                            <div class="fw-bold text-success"><span id="test-rpi-power">--</span> W
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 推桿監控區塊 -->
-                <div class="row mt-3">
-                    <div class="col-lg-6">
-                        <div class="card h-100">
-                            <div class="card-header bg-white border-0 pt-3">
-                                <h5 class="card-title fw-bold"><i class="fas fa-arrows-alt-v text-primary me-2"></i>南北推桿
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="row g-2">
-                                    <div class="col-6">
-                                        <div class="p-3 bg-light rounded text-center">
-                                            <div class="stat-label">當前角度</div>
-                                            <div class="stat-value text-primary"><span id="test-ns-angle">--</span>
-                                                <small class="fs-6">°</small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="p-3 bg-light rounded text-center">
-                                            <div class="stat-label">伸展長度</div>
-                                            <div class="stat-value"><span id="test-ns-extension">--</span> <small
-                                                    class="fs-6">mm</small></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-6">
-                        <div class="card h-100">
-                            <div class="card-header bg-white border-0 pt-3">
-                                <h5 class="card-title fw-bold"><i class="fas fa-arrows-alt-h text-warning me-2"></i>東西推桿
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="row g-2">
-                                    <div class="col-6">
-                                        <div class="p-3 bg-light rounded text-center">
-                                            <div class="stat-label">當前角度</div>
-                                            <div class="stat-value text-warning"><span id="test-ew-angle">--</span>
-                                                <small class="fs-6">°</small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="p-3 bg-light rounded text-center">
-                                            <div class="stat-label">伸展長度</div>
-                                            <div class="stat-value"><span id="test-ew-extension">--</span> <small
-                                                    class="fs-6">mm</small></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 推桿總功率 -->
-                <div class="row mt-3">
-                    <div class="col-12">
-                        <div class="card">
-                            <div class="card-header bg-white border-0 pt-3">
-                                <h5 class="card-title fw-bold"><i class="fas fa-cogs text-danger me-2"></i>推桿總功率</h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="row g-3">
-                                    <div class="col-md-4">
-                                        <div class="p-3 bg-light rounded text-center">
-                                            <small class="text-muted">總電壓</small>
-                                            <div class="fs-4 fw-bold"><span id="test-actuator-total-voltage">--</span> V
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="p-3 bg-light rounded text-center">
-                                            <small class="text-muted">總電流</small>
-                                            <div class="fs-4 fw-bold"><span id="test-actuator-total-current">--</span>
-                                                mA</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="p-3 bg-danger bg-opacity-10 rounded text-center">
-                                        <small class="text-muted">即時功率</small>
-                                        <div class="fs-4 fw-bold text-danger"><span
-                                                id="test-actuator-total-power">--</span> W</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card p-3 mt-4">
-                <div class="d-flex align-items-center">
-                    <h6 class="mb-0 me-3">自動刷新頻率：</h6>
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-primary"
-                            onclick="setTabRefreshInterval('test-system', 3000)">3秒</button>
-                        <button class="btn btn-outline-primary"
-                            onclick="setTabRefreshInterval('test-system', 5000)">5秒</button>
-                        <button class="btn btn-outline-primary"
-                            onclick="setTabRefreshInterval('test-system', 10000)">10秒</button>
-                        <button class="btn btn-outline-danger" onclick="stopTabRefresh('test-system')">停止</button>
-                    </div>
-                    <span class="ms-3 text-muted small" id="refresh-status-test">狀態: 待啟動</span>
-                </div>
-                <div id="test-status" class="mt-2 small"></div>
-            </div>
-
-            <div class="card p-4 mt-4">
-                <h5 class="card-title mb-3">最新 5 筆記錄</h5>
-                <div id="test-records" class="table-responsive">
-                    <div class="text-center text-muted">載入記錄中...</div>
-                </div>
+<!-- 總覽 -->
+<div id="tab-overview" class="tab-pane active">
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3"><div class="card sys-card c-exp1 h-100" onclick="switchTab('sys-1')"><div class="acc-line"></div><div class="p-3"><div class="d-flex justify-content-between align-items-start mb-2"><div><div class="fw-bold mb-1">實驗組 I</div><span class="badge-exp">ANFIS 追日</span></div><span class="ob ob-off" id="ov-s1-badge"><span class="dot"></span>離線</span></div><div class="text-center my-3"><div class="power-num" style="color:var(--c-exp1)" id="ov-s1-power">--</div><div class="power-unit">W 即時功率</div></div><div class="ts-label text-center" id="ov-s1-time">--</div></div></div></div>
+        <div class="col-6 col-lg-3"><div class="card sys-card c-exp2 h-100" onclick="switchTab('sys-2')"><div class="acc-line"></div><div class="p-3"><div class="d-flex justify-content-between align-items-start mb-2"><div><div class="fw-bold mb-1">實驗組 II</div><span class="badge-exp">ANFIS 追日</span></div><span class="ob ob-off" id="ov-s2-badge"><span class="dot"></span>離線</span></div><div class="text-center my-3"><div class="power-num" style="color:var(--c-exp2)" id="ov-s2-power">--</div><div class="power-unit">W 即時功率</div></div><div class="ts-label text-center" id="ov-s2-time">--</div></div></div></div>
+        <div class="col-6 col-lg-3"><div class="card sys-card c-ctrl1 h-100" onclick="switchTab('sys-3')"><div class="acc-line"></div><div class="p-3"><div class="d-flex justify-content-between align-items-start mb-2"><div><div class="fw-bold mb-1">對照組 I</div><span class="badge-ctrl">差分感測追日</span></div><span class="ob ob-off" id="ov-s3-badge"><span class="dot"></span>離線</span></div><div class="text-center my-3"><div class="power-num" style="color:var(--c-ctrl1)" id="ov-s3-power">--</div><div class="power-unit">W 即時功率</div></div><div class="ts-label text-center" id="ov-s3-time">--</div></div></div></div>
+        <div class="col-6 col-lg-3"><div class="card sys-card c-ctrl2 h-100" onclick="switchTab('sys-4')"><div class="acc-line"></div><div class="p-3"><div class="d-flex justify-content-between align-items-start mb-2"><div><div class="fw-bold mb-1">對照組 II</div><span class="badge-ctrl">差分感測追日</span></div><span class="ob ob-off" id="ov-s4-badge"><span class="dot"></span>離線</span></div><div class="text-center my-3"><div class="power-num" style="color:var(--c-ctrl2)" id="ov-s4-power">--</div><div class="power-unit">W 即時功率</div></div><div class="ts-label text-center" id="ov-s4-time">--</div></div></div></div>
+    </div>
+    <div class="card">
+        <div class="card-hdr">
+            <h6><i class="fas fa-table" style="color:var(--c-solar)"></i>所有系統數據記錄</h6>
+            <div class="d-flex gap-2 align-items-center">
+                <select id="date-range-selector" class="form-select form-select-sm" style="width:130px" onchange="onDateRangeChange()">
+                    <option value="7">最近 7 天</option><option value="30">最近 30 天</option>
+                    <option value="90">最近 90 天</option><option value="all">全部資料</option>
+                </select>
+                <button class="btn btn-sm btn-primary" onclick="refreshAllSitesData()"><i class="fas fa-sync-alt me-1"></i>刷新</button>
+                <a href="/api/power-records/export_csv/" class="btn btn-sm btn-outline-secondary"><i class="fas fa-download me-1"></i>匯出</a>
             </div>
         </div>
-
-        <div id="jintudi-traditional" class="tab-pane fade" style="display: none;">
-            <div class="card p-5 text-center text-muted">功能開發中...</div>
-        </div>
-        <div id="jintudi-smart" class="tab-pane fade" style="display: none;">
-            <div class="card p-5 text-center text-muted">功能開發中...</div>
-        </div>
-        <div id="eng1-traditional" class="tab-pane fade" style="display: none;">
-            <div class="card p-5 text-center text-muted">功能開發中...</div>
-        </div>
-        <div id="eng1-smart" class="tab-pane fade" style="display: none;">
-            <div class="card p-5 text-center text-muted">功能開發中...</div>
+        <div style="padding:16px">
+            <div class="table-responsive" style="max-height:400px;overflow-y:auto">
+                <table class="data-table">
+                    <thead><tr><th>系統</th><th>時間</th><th>功率(W)</th><th>電壓(V)</th><th>電流(A)</th><th>光照(lux)</th><th>溫度(°C)</th></tr></thead>
+                    <tbody id="all-sites-table-body"><tr><td colspan="7" class="text-center py-4 text-muted">載入中…</td></tr></tbody>
+                </table>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <span class="ts-label" id="data-count-info">--</span>
+                <div class="d-flex gap-2 align-items-center">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="prevPage()" id="prev-btn"><i class="fas fa-chevron-left"></i></button>
+                    <span style="font-size:.82rem">第 <b id="current-page">1</b> / <b id="total-pages">1</b> 頁</span>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="nextPage()" id="next-btn"><i class="fas fa-chevron-right"></i></button>
+                </div>
+            </div>
         </div>
     </div>
+</div>
+
+<!-- Per-system -->
+<div id="tab-sys-1" class="tab-pane"></div>
+<div id="tab-sys-2" class="tab-pane"></div>
+<div id="tab-sys-3" class="tab-pane"></div>
+<div id="tab-sys-4" class="tab-pane"></div>
+
+<!-- 固定式面板 -->
+<div id="tab-fixed-panels" class="tab-pane">
+    <div class="card mb-3 p-3">
+        <div class="d-flex flex-wrap gap-3 align-items-center">
+            <div class="d-flex align-items-center gap-2">
+                <label class="fw-bold" style="font-size:.85rem;white-space:nowrap">月份：</label>
+                <select id="fp-month-sel" class="form-select form-select-sm" style="width:140px" onchange="fpOnMonthChange()"><option value="">載入中…</option></select>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <label class="fw-bold" style="font-size:.85rem;white-space:nowrap">每日趨勢篩選：</label>
+                <select id="fp-tilt-sel" class="form-select form-select-sm" style="width:90px" onchange="fpLoadDaily()">
+                    <option value="">全部傾角</option>
+                    <option value="10">10°</option><option value="15">15°</option><option value="20">20°</option><option value="30">30°</option>
+                </select>
+                <select id="fp-azi-sel" class="form-select form-select-sm" style="width:90px" onchange="fpLoadDaily()">
+                    <option value="">全部方位</option>
+                    <option value="160">160°</option><option value="180">180°</option><option value="200">200°</option>
+                </select>
+            </div>
+            <span class="ts-label ms-auto" id="fp-status">--</span>
+        </div>
     </div>
+    <div class="row g-3 mb-3">
+        <div class="col-lg-7">
+            <div class="card"><div class="card-hdr"><h6><i class="fas fa-chart-line" style="color:#059669"></i>月均小時功率曲線（依組別）</h6><span class="ts-label" id="fp-curve-month-label">--</span></div>
+            <div class="p-3"><div style="height:280px;position:relative"><canvas id="fp-curve-chart"></canvas></div></div></div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card"><div class="card-hdr"><h6><i class="fas fa-chart-bar" style="color:#059669"></i>每日平均功率</h6><span class="ts-label" id="fp-daily-month-label">--</span></div>
+            <div class="p-3"><div style="height:280px;position:relative"><canvas id="fp-daily-chart"></canvas></div></div></div>
+        </div>
+    </div>
+    <div class="card mb-3">
+        <div class="card-hdr"><h6><i class="fas fa-table" style="color:#059669"></i>月均功率統計（W）</h6><span class="ts-label">各傾角 × 方位角組合</span></div>
+        <div style="overflow-x:auto;max-height:320px">
+            <table class="data-table" id="fp-monthly-table">
+                <thead><tr><th>月份</th><th colspan="12">各面板組平均功率 (W)</th></tr></thead>
+                <tbody id="fp-monthly-body"><tr><td colspan="13" class="text-center text-muted py-4">載入中…</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+    <!-- 單日詳細 -->
+    <div class="card mb-3">
+        <div class="card-hdr">
+            <h6><i class="fas fa-calendar-day" style="color:#7c3aed"></i>單日詳細 — 逐小時功率（每片面板）</h6>
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <input type="date" id="fp-day-input" class="form-control form-control-sm" style="width:150px" onchange="fpLoadDayCurve()">
+                <select id="fp-day-tilt-sel" class="form-select form-select-sm" style="width:90px" onchange="fpLoadDayCurve()"><option value="">傾角…</option></select>
+                <select id="fp-day-azi-sel" class="form-select form-select-sm" style="width:90px" onchange="fpLoadDayCurve()"><option value="">方位角…</option></select>
+                <span class="ts-label" id="fp-day-status">--</span>
+            </div>
+        </div>
+        <div class="p-3"><div style="height:300px;position:relative"><canvas id="fp-day-chart"></canvas></div></div>
+        <div style="overflow-x:auto;padding:0 16px 16px">
+            <table class="data-table">
+                <thead><tr><th>面板</th><th>傾角</th><th>方位角</th><th>當日發電量 (Wh)</th></tr></thead>
+                <tbody id="fp-day-energy-body"><tr><td colspan="4" class="text-center text-muted py-3">請選擇日期</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+    <!-- 面板組比較 (A vs B) -->
+    <div class="card">
+        <div class="card-hdr">
+            <h6><i class="fas fa-wave-square" style="color:#7c3aed"></i>面板組比較 (A vs B)</h6>
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <select id="fp-trend-tilt-sel" class="form-select form-select-sm" style="width:90px" onchange="fpLoadPanelTrend()"><option value="">傾角…</option></select>
+                <select id="fp-trend-azi-sel" class="form-select form-select-sm" style="width:90px" onchange="fpLoadPanelTrend()"><option value="">方位角…</option></select>
+                <select id="fp-trend-month-sel" class="form-select form-select-sm" style="width:140px" onchange="fpLoadPanelTrend()"><option value="">全部月份</option></select>
+                <span class="ts-label" id="fp-trend-status">--</span>
+            </div>
+        </div>
+        <div class="p-3"><div style="height:260px;position:relative"><canvas id="fp-trend-chart"></canvas></div></div>
+    </div>
+</div>
 
-    <script>
-        const API_BASE_URL = "/api";
-        const tabAutoRefreshIntervals = {};
-        let currentPage = 1;
-        const itemsPerPage = 10;
-        let allSitesData = [];
-        let testSystemRefreshInterval = null;
+<!-- 發電比較 -->
+<div id="tab-compare" class="tab-pane">
+    <div class="row g-3 mb-3">
+        <div class="col-12"><div class="card"><div class="card-hdr"><h6><i class="fas fa-chart-line" style="color:#8b5cf6"></i>功率趨勢比較（最近 30 筆）</h6><span class="ts-label" id="compare-update-time">--</span></div><div class="p-3"><div style="height:280px;position:relative"><canvas id="compare-line-chart"></canvas></div></div></div></div>
+    </div>
+    <div class="row g-3">
+        <div class="col-lg-5"><div class="card"><div class="card-hdr"><h6><i class="fas fa-chart-bar" style="color:#8b5cf6"></i>即時功率比較</h6></div><div class="p-3"><div style="height:260px;position:relative"><canvas id="compare-bar-chart"></canvas></div></div></div></div>
+        <div class="col-lg-7"><div class="card h-100"><div class="card-hdr"><h6><i class="fas fa-table-cells" style="color:#8b5cf6"></i>即時數據一覽</h6></div><div style="overflow:auto;max-height:320px"><table class="data-table"><thead><tr><th>系統</th><th>功率(W)</th><th>γ 南北(°)</th><th>ζ 東西(°)</th><th>狀態</th></tr></thead><tbody id="compare-table-body"><tr><td colspan="5" class="text-center py-4 text-muted">載入中…</td></tr></tbody></table></div></div></div>
+    </div>
+</div>
 
-        document.addEventListener('DOMContentLoaded', function () {
-            refreshOverview();
-            refreshSiteData('test', 1);
 
-            // 每2秒自動刷新測試系統數據
-            testSystemRefreshInterval = setInterval(() => {
-                const testTab = document.getElementById('test-system');
-                if (testTab && testTab.classList.contains('show')) {
-                    refreshSiteData('test', 1);
-                }
-            }, 2000);
+<!-- CSV 分析 -->
+<div id="tab-csv-analysis" class="tab-pane">
+    <div class="card mb-3 p-3">
+        <div class="d-flex flex-wrap gap-3 align-items-center">
+            <span class="fw-bold" style="font-size:.85rem;white-space:nowrap"><i class="fas fa-database me-1" style="color:#7c3aed"></i>資料來源：</span>
+            <span class="ts-label" id="csv-status">
+                <span id="csv-auto-status">
+                    <i class="fas fa-spinner fa-spin me-1"></i>準備載入伺服器資料...
+                </span>
+            </span>
+            <button class="btn btn-sm btn-outline-secondary ms-auto" onclick="document.getElementById('csv-manual-upload').style.display=document.getElementById('csv-manual-upload').style.display==='none'?'flex':'none'" style="font-size:.8rem">
+                <i class="fas fa-upload me-1"></i>改用本機 CSV
+            </button>
+        </div>
+        <div id="csv-manual-upload" style="display:none;align-items:center;gap:.75rem;margin-top:.6rem;flex-wrap:wrap">
+            <label style="font-size:.82rem;color:#64748b">手動上傳覆蓋伺服器資料：</label>
+            <input type="file" id="csv-upload-input" accept=".csv" class="form-control form-control-sm" style="width:280px" onchange="csvLoadFile(event)">
+        </div>
+    </div>
+    <div id="csv-controls" style="display:none">
+        <div class="card mb-3 p-3">
+            <div class="d-flex flex-wrap gap-4 align-items-center">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <span class="fw-bold" style="font-size:.85rem">年份：</span>
+                    <div id="csv-year-btns" class="d-flex gap-2 flex-wrap"></div>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <span class="fw-bold" style="font-size:.85rem">月份：</span>
+                    <div id="csv-month-btns" class="d-flex gap-2 flex-wrap"></div>
+                </div>
+                <span id="csv-period-label" class="ts-label ms-auto"></span>
+            </div>
+        </div>
+        <div class="d-flex gap-0 mb-3" style="border-bottom:2px solid var(--c-border)">
+            <button class="tab-btn t-csv active" id="csv-subtab-date-cmp" onclick="csvSwitchSubTab('date-cmp')" style="border-bottom-color:#7c3aed"><i class="fas fa-calendar-alt me-1"></i>日期比較</button>
+            <button class="tab-btn" id="csv-subtab-panel-cmp" onclick="csvSwitchSubTab('panel-cmp')"><i class="fas fa-layer-group me-1"></i>面板比較</button>
+            <button class="tab-btn" id="csv-subtab-monthly-stats" onclick="csvSwitchSubTab('monthly-stats')"><i class="fas fa-chart-bar me-1"></i>月度統計</button>
+        </div>
+        <!-- 日期比較 -->
+        <div id="csv-pane-date-cmp">
+            <div class="row g-3">
+                <div class="col-lg-3">
+                    <div class="card p-3" style="height:480px;display:flex;flex-direction:column">
+                        <div class="fw-bold mb-2" style="font-size:.85rem">選擇要顯示的日期</div>
+                        <div id="csv-day-checkboxes" style="flex:1;overflow-y:auto"></div>
+                        <div class="d-flex flex-wrap gap-2 mt-3 pt-2" style="border-top:1px solid var(--c-border)">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="csvSelectAllDays(true)">全選</button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="csvSelectAllDays(false)">取消</button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="csvSelectNDays(5)">前5天</button>
+                            <button class="btn btn-sm btn-primary" onclick="csvGenerateDatePlot()">產生圖表</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-9">
+                    <div class="card">
+                        <div class="card-hdr"><h6><i class="fas fa-chart-line" style="color:#7c3aed"></i>日間發電曲線比較（逐小時）</h6><span class="ts-label" id="csv-date-chart-label">--</span></div>
+                        <div class="p-3"><div style="height:420px;position:relative"><canvas id="csv-date-chart"></canvas></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- 面板比較 -->
+        <div id="csv-pane-panel-cmp" style="display:none">
+            <div class="row g-3">
+                <div class="col-lg-3">
+                    <div class="card p-3" style="height:480px;display:flex;flex-direction:column;overflow-y:auto">
+                        <div class="fw-bold mb-1" style="font-size:.85rem">選擇日期</div>
+                        <div id="csv-panel-day-radios" style="max-height:150px;overflow-y:auto;margin-bottom:8px"></div>
+                        <div class="fw-bold mb-1" style="font-size:.85rem">角度篩選</div>
+                        <div class="d-flex gap-2 mb-2">
+                            <select id="csv-tilt-sel" class="form-select form-select-sm" onchange="csvFilterPanels()"><option value="">所有傾角</option></select>
+                            <select id="csv-azi-sel" class="form-select form-select-sm" onchange="csvFilterPanels()"><option value="">所有方位角</option></select>
+                        </div>
+                        <div class="fw-bold mb-1" style="font-size:.85rem">選擇面板</div>
+                        <div id="csv-panel-checkboxes" style="flex:1;overflow-y:auto;min-height:60px"></div>
+                        <div class="d-flex flex-wrap gap-2 mt-2 pt-2" style="border-top:1px solid var(--c-border)">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="csvSelectAllPanels(true)">全選</button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="csvSelectAllPanels(false)">取消</button>
+                            <button class="btn btn-sm btn-primary" onclick="csvGeneratePanelPlot()">產生圖表</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-9">
+                    <div class="card">
+                        <div class="card-hdr"><h6><i class="fas fa-layer-group" style="color:#7c3aed"></i>各面板日間發電曲線</h6><span class="ts-label" id="csv-panel-chart-label">--</span></div>
+                        <div class="p-3"><div style="height:420px;position:relative"><canvas id="csv-panel-chart"></canvas></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- 月度統計 -->
+        <div id="csv-pane-monthly-stats" style="display:none">
+            <div class="row g-3">
+                <div class="col-lg-3">
+                    <div class="card p-3">
+                        <div class="fw-bold mb-2" style="font-size:.85rem">圖表類型</div>
+                        <div class="d-flex flex-column gap-2 mb-3">
+                            <label style="font-size:.85rem"><input type="radio" name="csv-chart-type" value="daily_total" checked> 每日總發電量 (kWh)</label>
+                            <label style="font-size:.85rem"><input type="radio" name="csv-chart-type" value="panel_total"> 面板總發電量 (kWh)</label>
+                            <label style="font-size:.85rem"><input type="radio" name="csv-chart-type" value="panel_avg"> 面板平均發電量 (W)</label>
+                        </div>
+                        <div class="fw-bold mb-2" style="font-size:.85rem">角度篩選（面板圖表用）</div>
+                        <select id="csv-stats-tilt-sel" class="form-select form-select-sm mb-2"><option value="">所有傾角</option></select>
+                        <select id="csv-stats-azi-sel" class="form-select form-select-sm mb-3"><option value="">所有方位角</option></select>
+                        <button class="btn btn-sm btn-primary w-100" onclick="csvGenerateStatsPlot()">產生圖表</button>
+                    </div>
+                </div>
+                <div class="col-lg-9">
+                    <div class="card">
+                        <div class="card-hdr"><h6 id="csv-stats-chart-title"><i class="fas fa-chart-bar" style="color:#7c3aed"></i>月度統計</h6></div>
+                        <div class="p-3"><div style="height:420px;position:relative"><canvas id="csv-stats-chart"></canvas></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Z3A 採集 -->
+<div id="tab-z3a" class="tab-pane">
+    <!-- 狀態列 -->
+    <div class="card mb-3 p-3">
+        <div class="d-flex flex-wrap gap-3 align-items-center">
+            <span class="fw-bold" style="font-size:.85rem;white-space:nowrap"><i class="fas fa-broadcast-tower me-1" style="color:#e11d48"></i>Z3A 雲端採集</span>
+            <span class="ts-label" id="z3a-token-status"><i class="fas fa-spinner fa-spin me-1"></i>檢查連線…</span>
+            <button class="btn btn-sm btn-outline-danger" onclick="z3aRefreshToken()" id="z3a-refresh-btn" style="display:none"><i class="fas fa-key me-1"></i>重新登入</button>
+            <div class="ms-auto d-flex gap-2 align-items-center flex-wrap">
+                <label class="fw-bold" style="font-size:.82rem">開始：</label>
+                <input type="date" id="z3a-start" class="form-control form-control-sm" style="width:140px">
+                <label class="fw-bold" style="font-size:.82rem">結束：</label>
+                <input type="date" id="z3a-end" class="form-control form-control-sm" style="width:140px">
+                <label class="fw-bold" style="font-size:.82rem">頻道：</label>
+                <select id="z3a-fun-sel" class="form-select form-select-sm" style="width:180px">
+                    <option value="voltage" selected>電壓 (V)</option>
+                    <option value="current">電流 (mA)</option>
+                    <option value="power">功率 (W = V × I)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <!-- 主內容 -->
+    <div class="row g-3">
+        <!-- 左：裝置清單 -->
+        <div class="col-lg-3">
+            <div class="card h-100" style="min-height:500px;display:flex;flex-direction:column">
+                <div class="card-hdr">
+                    <h6><i class="fas fa-list" style="color:#e11d48"></i>裝置清單</h6>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="z3aLoadDevices()" style="font-size:.75rem"><i class="fas fa-sync-alt me-1"></i>刷新</button>
+                </div>
+                <div style="padding:8px;flex:1;overflow-y:auto">
+                    <div class="d-flex gap-2 mb-2 flex-wrap">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="z3aSelectAll(true)" style="font-size:.75rem">全選</button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="z3aSelectAll(false)" style="font-size:.75rem">取消</button>
+                        <button class="btn btn-sm btn-danger" onclick="z3aFetchSelected()" style="font-size:.75rem"><i class="fas fa-chart-line me-1"></i>載入</button>
+                    </div>
+                    <div id="z3a-device-list" style="font-size:.8rem">
+                        <div class="text-muted text-center py-4"><i class="fas fa-spinner fa-spin"></i> 載入裝置中…</div>
+                    </div>
+                </div>
+                <div style="padding:8px;border-top:1px solid var(--c-border);font-size:.72rem;color:var(--c-muted)" id="z3a-device-count">-- 個裝置</div>
+            </div>
+        </div>
+        <!-- 右：圖表 -->
+        <div class="col-lg-9">
+            <div class="card mb-3">
+                <div class="card-hdr">
+                    <h6 id="z3a-chart-title"><i class="fas fa-chart-line" style="color:#e11d48"></i>Z3A 歷史趨勢</h6>
+                    <span class="ts-label" id="z3a-chart-status">請選擇裝置後按「載入」</span>
+                </div>
+                <div class="p-3"><div style="height:380px;position:relative"><canvas id="z3a-main-chart"></canvas></div></div>
+            </div>
+            <!-- 數據摘要表格 -->
+            <div class="card">
+                <div class="card-hdr"><h6><i class="fas fa-table" style="color:#e11d48"></i>數據摘要</h6></div>
+                <div style="overflow-x:auto;max-height:240px">
+                    <table class="data-table">
+                        <thead><tr><th>裝置 ID</th><th>最小值</th><th>最大值</th><th>平均值</th><th>數據點數</th></tr></thead>
+                        <tbody id="z3a-summary-body"><tr><td colspan="5" class="text-center text-muted py-3">尚無資料</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div><!-- /main-content -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API='/api';
+const SYSTEMS=[
+    {id:1,name:'實驗組 I', type:'exp',color:'#3b82f6'},
+    {id:2,name:'實驗組 II',type:'exp',color:'#60a5fa'},
+    {id:3,name:'對照組 I', type:'ctrl',color:'#10b981'},
+    {id:4,name:'對照組 II',type:'ctrl',color:'#34d399'},
+];
+const REFRESH_MS=5000;
+let currentPage=1;
+const trendHistory={1:[],2:[],3:[],4:[]};
+const trendCharts={};
+let cmpLineChart=null,cmpBarChart=null;
+
+function updateClock(){
+    const now=new Date();
+    const d=document.getElementById('hdr-date'),t=document.getElementById('hdr-time');
+    if(d)d.textContent=now.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',weekday:'short'});
+    if(t)t.textContent=now.toLocaleTimeString('zh-TW');
+}
+updateClock();setInterval(updateClock,1000);
+
+function buildSysPanel(sys){
+    const p=sys.id,isExp=sys.type==='exp';
+    const bc=isExp?'badge-exp':'badge-ctrl',bt=isExp?'ANFIS 追日':'差分感測追日';
+    return `<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+<div class="d-flex align-items-center gap-2">
+<h4 class="fw-bold mb-0" style="color:${sys.color}">${sys.name}</h4>
+<span class="${bc}">${bt}</span>
+<span class="ob ob-off" id="s${p}-badge"><span class="dot"></span><span id="s${p}-stxt">離線</span></span>
+</div>
+<div class="d-flex gap-2">
+<button class="btn btn-sm btn-primary" onclick="loadSysData(${p})"><i class="fas fa-sync-alt me-1"></i>刷新</button>
+<a href="/api/power-records/export_csv/?system=${p}" class="btn btn-sm btn-outline-secondary" download><i class="fas fa-download me-1"></i>匯出</a>
+</div></div>
+<div class="row g-3 mb-3">
+<div class="col-lg-4"><div class="card h-100"><div class="card-hdr"><h6><i class="fas fa-solar-panel" style="color:var(--c-solar)"></i>太陽能板輸出</h6><span class="ts-label" id="s${p}-ts">--</span></div>
+<div class="p-4 text-center"><div class="mlabel">即時發電功率</div><div class="power-num mb-1" style="color:${sys.color}" id="s${p}-pwr">--</div><div class="power-unit">W</div>
+<div class="row g-2 mt-3"><div class="col-6"><div class="mtile"><div class="mlabel">電壓</div><div class="mval sm"><span id="s${p}-v">--</span><span class="munit"> V</span></div></div></div>
+<div class="col-6"><div class="mtile"><div class="mlabel">電流</div><div class="mval sm"><span id="s${p}-a">--</span><span class="munit"> A</span></div></div></div></div></div></div></div>
+<div class="col-lg-4"><div class="card h-100"><div class="card-hdr"><h6><i class="fas fa-sun" style="color:var(--c-solar)"></i>四方位光照 (lux)</h6></div>
+<div class="p-3 d-flex align-items-center" style="min-height:160px"><div class="compass-wrap w-100">
+<div class="compass-cell c-n"><div class="cdir">北 N</div><div class="clux" id="s${p}-ln">--</div></div>
+<div class="compass-cell c-e"><div class="cdir">東 E</div><div class="clux" id="s${p}-le">--</div></div>
+<div class="compass-cell c-w"><div class="cdir">西 W</div><div class="clux" id="s${p}-lw">--</div></div>
+<div class="compass-cell c-s"><div class="cdir">南 S</div><div class="clux" id="s${p}-ls">--</div></div>
+<div class="compass-cell c-c"><div class="cdir">總照</div><div class="clux" id="s${p}-lt">--</div></div>
+</div></div></div></div>
+<div class="col-lg-4"><div class="card h-100"><div class="card-hdr"><h6><i class="fas fa-thermometer-half text-danger"></i>環境 & 面板角度</h6></div>
+<div class="p-3"><div class="row g-2">
+<div class="col-6"><div class="mtile"><div class="mlabel">溫度</div><div class="mval"><span id="s${p}-tmp">--</span><span class="munit"> °C</span></div></div></div>
+<div class="col-6"><div class="mtile"><div class="mlabel">濕度</div><div class="mval"><span id="s${p}-hum">--</span><span class="munit"> %</span></div></div></div>
+<div class="col-6"><div class="mtile"><div class="mlabel">方位角 φ</div><div class="mval"><span id="s${p}-azi">--</span><span class="munit"> °</span></div></div></div>
+<div class="col-6"><div class="mtile"><div class="mlabel">傾角 β</div><div class="mval"><span id="s${p}-tilt">--</span><span class="munit"> °</span></div></div></div>
+</div></div></div></div></div>
+<div class="row g-3 mb-3">
+<div class="col-lg-4"><div class="card h-100"><div class="card-hdr"><h6><i class="fas fa-arrows-alt-v" style="color:var(--c-exp1)"></i>南北推桿 γ</h6></div>
+<div class="p-3"><div class="row g-2 mb-2">
+<div class="col-6"><div class="mtile"><div class="mlabel">角度 γ</div><div class="mval" style="color:var(--c-exp1)"><span id="s${p}-nsa">--</span>°</div></div></div>
+<div class="col-6"><div class="mtile"><div class="mlabel">伸展</div><div class="mval sm"><span id="s${p}-nse">--</span><span class="munit"> mm</span></div></div></div>
+</div>
+<div class="act-wrap"><div class="act-fill" id="s${p}-nsb" style="width:50%;background:linear-gradient(90deg,#3b82f6,#60a5fa)"></div></div>
+<div class="d-flex justify-content-between mt-1" style="font-size:.65rem;color:#94a3b8"><span>-30°</span><span>0°</span><span>+30°</span></div>
+</div></div></div>
+<div class="col-lg-4"><div class="card h-100"><div class="card-hdr"><h6><i class="fas fa-arrows-alt-h" style="color:var(--c-solar)"></i>東西推桿 ζ</h6></div>
+<div class="p-3"><div class="row g-2 mb-2">
+<div class="col-6"><div class="mtile"><div class="mlabel">角度 ζ</div><div class="mval" style="color:var(--c-solar)"><span id="s${p}-ewa">--</span>°</div></div></div>
+<div class="col-6"><div class="mtile"><div class="mlabel">伸展</div><div class="mval sm"><span id="s${p}-ewe">--</span><span class="munit"> mm</span></div></div></div>
+</div>
+<div class="act-wrap"><div class="act-fill" id="s${p}-ewb" style="width:50%;background:linear-gradient(90deg,#f59e0b,#fbbf24)"></div></div>
+<div class="d-flex justify-content-between mt-1" style="font-size:.65rem;color:#94a3b8"><span>-35°</span><span>0°</span><span>+35°</span></div>
+</div></div></div>
+<div class="col-lg-4"><div class="card h-100"><div class="card-hdr"><h6><i class="fas fa-microchip text-success"></i>推桿功耗 & 樹莓派</h6></div>
+<div class="p-3"><div class="mtile mb-2" style="background:#fff0f0"><div class="mlabel">推桿總功率</div><div class="mval text-danger"><span id="s${p}-actp">--</span><span class="munit"> W</span></div></div>
+<div class="row g-2">
+<div class="col-4"><div class="mtile"><div class="mlabel">電壓</div><div class="mval sm"><span id="s${p}-actv">--</span><span class="munit"> V</span></div></div></div>
+<div class="col-4"><div class="mtile"><div class="mlabel">電流</div><div class="mval sm"><span id="s${p}-actc">--</span><span class="munit"> mA</span></div></div></div>
+<div class="col-4"><div class="mtile"><div class="mlabel">Pi 功率</div><div class="mval sm text-success"><span id="s${p}-rpip">--</span><span class="munit"> W</span></div></div></div>
+</div></div></div></div></div>
+<div class="row g-3">
+<div class="col-lg-5"><div class="card"><div class="card-hdr"><h6><i class="fas fa-chart-line" style="color:${sys.color}"></i>功率趨勢（最近 20 筆）</h6></div>
+<div class="p-3"><div style="height:200px;position:relative"><canvas id="s${p}-tc"></canvas></div></div></div></div>
+<div class="col-lg-7"><div class="card"><div class="card-hdr"><h6><i class="fas fa-history"></i>最新 10 筆記錄</h6></div>
+<div style="max-height:260px;overflow-y:auto"><table class="data-table">
+<thead><tr><th>時間</th><th>功率(W)</th><th>電壓(V)</th><th>電流(A)</th><th>γ°</th><th>ζ°</th></tr></thead>
+<tbody id="s${p}-rec"></tbody></table></div></div></div></div>`;
+}
+
+SYSTEMS.forEach(sys=>{
+    const el=document.getElementById(`tab-sys-${sys.id}`);
+    if(el)el.innerHTML=buildSysPanel(sys);
+});
+SYSTEMS.forEach(sys=>{
+    const ctx=document.getElementById(`s${sys.id}-tc`);
+    if(!ctx)return;
+    trendCharts[sys.id]=new Chart(ctx,{
+        type:'line',
+        data:{labels:[],datasets:[{label:'功率(W)',data:[],borderColor:sys.color,backgroundColor:sys.color+'18',fill:true,tension:.35,pointRadius:2,borderWidth:2}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+            scales:{y:{beginAtZero:true,grid:{color:'#f1f5f9'},ticks:{font:{size:10}}},x:{grid:{display:false},ticks:{font:{size:9},maxRotation:45}}}}
+    });
+});
+const clCtx=document.getElementById('compare-line-chart');
+if(clCtx){cmpLineChart=new Chart(clCtx,{type:'line',
+    data:{labels:[],datasets:SYSTEMS.map(s=>({label:s.name,data:[],borderColor:s.color,backgroundColor:'transparent',tension:.35,pointRadius:2,borderWidth:2}))},
+    options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{position:'top',labels:{usePointStyle:true,boxWidth:8,font:{size:12}}}},
+        scales:{y:{beginAtZero:true,grid:{color:'#f1f5f9'}},x:{grid:{display:false},ticks:{font:{size:10}}}}}
+});}
+const cbCtx=document.getElementById('compare-bar-chart');
+if(cbCtx){cmpBarChart=new Chart(cbCtx,{type:'bar',
+    data:{labels:SYSTEMS.map(s=>s.name),datasets:[{label:'即時功率(W)',data:[0,0,0,0],backgroundColor:SYSTEMS.map(s=>s.color+'bb'),borderColor:SYSTEMS.map(s=>s.color),borderWidth:2,borderRadius:8}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+        scales:{y:{beginAtZero:true,grid:{color:'#f1f5f9'}},x:{grid:{display:false}}}}
+});}
+
+function buildStrip(){
+    const strip=document.getElementById('status-strip');
+    strip.innerHTML=SYSTEMS.map(s=>`<div class="status-pill" onclick="switchTab('sys-${s.id}')">
+<span class="status-dot" id="sd-${s.id}"></span>
+<span class="pill-name">${s.name}</span>
+<span class="pill-power" style="color:${s.color}" id="sp-${s.id}">-- W</span>
+</div>`).join('');
+}
+buildStrip();
+
+function fmt(v,d=2){return v!=null?parseFloat(v).toFixed(d):'--'}
+function setEl(id,val){const e=document.getElementById(id);if(e)e.textContent=val}
+function isRecent(ts){return(Date.now()-new Date(ts).getTime())<5*60*1000}
+function setOB(id,online,txtId=null){
+    const el=document.getElementById(id);if(!el)return;
+    if(online){el.className='ob ob-on';el.innerHTML=`<span class="dot"></span>`+(txtId?`<span id="${txtId}">連線中</span>`:'連線中');}
+    else{el.className='ob ob-off';el.innerHTML=`<span class="dot"></span>`+(txtId?`<span id="${txtId}">離線</span>`:'離線');}
+}
+function switchTab(tabId){
+    document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    const pane=document.getElementById(`tab-${tabId}`);if(pane)pane.classList.add('active');
+    document.querySelectorAll(`button[onclick="switchTab('${tabId}')"]`).forEach(b=>b.classList.add('active'));
+    if(tabId==='overview')refreshOverview();
+    else if(tabId.startsWith('sys-'))loadSysData(parseInt(tabId.split('-')[1]));
+    else if(tabId==='compare')refreshCompare();
+    else if(tabId==='fixed-panels'&&fpAvailMonths.length===0)fpInit();
+    else if(tabId==='csv-analysis'&&!csvDf.length)csvAutoLoad();
+    else if(tabId==='z3a')z3aInit();
+}
+async function loadSysData(sysId){
+    try{
+        const resp=await fetch(`${API}/power-records/latest/?system=${sysId}`);
+        if(!resp.ok)throw new Error();
+        const d=await resp.json();if(!d||!d.timestamp)throw new Error();
+        const p=sysId,online=isRecent(d.timestamp);
+        setOB(`s${p}-badge`,online,`s${p}-stxt`);
+        setEl(`s${p}-ts`,new Date(d.timestamp).toLocaleTimeString('zh-TW'));
+        setEl(`s${p}-pwr`,fmt(d.power_output));setEl(`s${p}-v`,fmt(d.voltage));setEl(`s${p}-a`,fmt(d.current,3));
+        setEl(`s${p}-tmp`,fmt(d.temperature,1));setEl(`s${p}-hum`,fmt(d.humidity,1));
+        setEl(`s${p}-azi`,fmt(d.panel_azimuth,1));setEl(`s${p}-tilt`,fmt(d.panel_tilt,1));
+        const bl=d.light_intensity;
+        setEl(`s${p}-ln`,fmt(d.light_north||bl,0));setEl(`s${p}-le`,fmt(d.light_east||bl,0));
+        setEl(`s${p}-lw`,fmt(d.light_west||bl,0));setEl(`s${p}-ls`,fmt(d.light_south||bl,0));setEl(`s${p}-lt`,fmt(bl,0));
+        const nsa=d.ns_actuator_angle||0,ewa=d.ew_actuator_angle||0;
+        setEl(`s${p}-nsa`,fmt(nsa,1));setEl(`s${p}-nse`,fmt(d.ns_actuator_extension,0));
+        setEl(`s${p}-ewa`,fmt(ewa,1));setEl(`s${p}-ewe`,fmt(d.ew_actuator_extension,0));
+        const nsb=document.getElementById(`s${p}-nsb`),ewb=document.getElementById(`s${p}-ewb`);
+        if(nsb)nsb.style.width=`${((nsa+30)/60*100).toFixed(0)}%`;
+        if(ewb)ewb.style.width=`${((ewa+35)/70*100).toFixed(0)}%`;
+        setEl(`s${p}-actp`,fmt(d.actuator_total_power));setEl(`s${p}-actv`,fmt(d.actuator_total_voltage));
+        setEl(`s${p}-actc`,fmt(d.actuator_total_current,1));setEl(`s${p}-rpip`,fmt(d.raspberry_pi_power));
+        const chart=trendCharts[sysId];
+        if(chart){
+            const label=new Date(d.timestamp).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+            trendHistory[sysId].push({t:label,p:parseFloat(d.power_output)||0});
+            if(trendHistory[sysId].length>20)trendHistory[sysId].shift();
+            chart.data.labels=trendHistory[sysId].map(x=>x.t);
+            chart.data.datasets[0].data=trendHistory[sysId].map(x=>x.p);
+            chart.update('none');
+        }
+        loadRecTable(sysId);
+    }catch(e){setOB(`s${sysId}-badge`,false,`s${sysId}-stxt`);}
+}
+async function loadRecTable(sysId){
+    const tbody=document.getElementById(`s${sysId}-rec`);if(!tbody)return;
+    try{
+        const resp=await fetch(`${API}/power-records/?system=${sysId}&ordering=-timestamp&limit=10`);
+        const data=await resp.json();const records=data.results||data;
+        if(!records.length){tbody.innerHTML='<tr><td colspan="6" class="text-center text-muted py-3">尚無記錄</td></tr>';return;}
+        const color=SYSTEMS.find(s=>s.id===sysId)?.color||'#64748b';
+        tbody.innerHTML=records.slice(0,10).map(r=>`<tr>
+<td style="white-space:nowrap">${new Date(r.timestamp).toLocaleTimeString('zh-TW')}</td>
+<td class="fw-bold" style="color:${color}">${r.power_output?.toFixed(2)??'--'}</td>
+<td>${r.voltage?.toFixed(2)??'--'}</td><td>${r.current?.toFixed(3)??'--'}</td>
+<td>${r.ns_actuator_angle?.toFixed(1)??'--'}</td><td>${r.ew_actuator_angle?.toFixed(1)??'--'}</td>
+</tr>`).join('');
+    }catch{tbody.innerHTML='<tr><td colspan="6" class="text-center text-danger">載入錯誤</td></tr>';}
+}
+async function refreshOverview(){
+    for(const sys of SYSTEMS){
+        try{
+            const resp=await fetch(`${API}/power-records/latest/?system=${sys.id}`);
+            if(!resp.ok)throw new Error();
+            const d=await resp.json();if(!d||!d.timestamp)throw new Error();
+            const pwr=parseFloat(d.power_output)||0,ts=new Date(d.timestamp),online=isRecent(d.timestamp);
+            setEl(`ov-s${sys.id}-power`,pwr.toFixed(2));setEl(`ov-s${sys.id}-time`,ts.toLocaleTimeString('zh-TW'));
+            setOB(`ov-s${sys.id}-badge`,online);
+            const dot=document.getElementById(`sd-${sys.id}`),pw=document.getElementById(`sp-${sys.id}`);
+            if(dot)dot.className=`status-dot${online?' online':''}`;if(pw)pw.textContent=`${pwr.toFixed(1)} W`;
+            trendHistory[sys.id].push({t:ts.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',second:'2-digit'}),p:pwr});
+            if(trendHistory[sys.id].length>30)trendHistory[sys.id].shift();
+        }catch{
+            setEl(`ov-s${sys.id}-power`,'--');setOB(`ov-s${sys.id}-badge`,false);
+            const dot=document.getElementById(`sd-${sys.id}`),pw=document.getElementById(`sp-${sys.id}`);
+            if(dot)dot.className='status-dot';if(pw)pw.textContent='-- W';
+        }
+    }
+    if(document.getElementById('tab-overview')?.classList.contains('active'))refreshAllSitesData();
+}
+async function refreshCompare(){
+    const powers=[],rows=[],tbody=document.getElementById('compare-table-body');
+    for(const sys of SYSTEMS){
+        try{
+            const resp=await fetch(`${API}/power-records/latest/?system=${sys.id}`);
+            const d=await resp.json();
+            const pwr=parseFloat(d.power_output)||0,online=isRecent(d.timestamp);
+            powers.push(pwr);
+            const bc=sys.type==='exp'?'badge-exp':'badge-ctrl',oc=online?'ob-on':'ob-off',ot=online?'連線中':'離線';
+            rows.push(`<tr><td><span class="${bc}">${sys.name}</span></td><td class="fw-bold" style="color:${sys.color}">${pwr.toFixed(2)}</td><td>${d.ns_actuator_angle?.toFixed(1)??'--'}</td><td>${d.ew_actuator_angle?.toFixed(1)??'--'}</td><td><span class="ob ${oc}"><span class="dot"></span>${ot}</span></td></tr>`);
+        }catch{powers.push(0);const bc=sys.type==='exp'?'badge-exp':'badge-ctrl';rows.push(`<tr><td><span class="${bc}">${sys.name}</span></td><td>--</td><td>--</td><td>--</td><td><span class="ob ob-off"><span class="dot"></span>離線</span></td></tr>`);}
+    }
+    if(tbody)tbody.innerHTML=rows.join('');
+    if(cmpBarChart){cmpBarChart.data.datasets[0].data=powers;cmpBarChart.update();}
+    if(cmpLineChart){
+        const label=new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+        cmpLineChart.data.labels.push(label);if(cmpLineChart.data.labels.length>30)cmpLineChart.data.labels.shift();
+        SYSTEMS.forEach((sys,i)=>{cmpLineChart.data.datasets[i].data.push(powers[i]);if(cmpLineChart.data.datasets[i].data.length>30)cmpLineChart.data.datasets[i].data.shift();});
+        cmpLineChart.update('none');
+    }
+    setEl('compare-update-time',`更新: ${new Date().toLocaleTimeString('zh-TW')}`);
+}
+const SYS_MAP={1:'實驗組 I',2:'實驗組 II',3:'對照組 I',4:'對照組 II'};
+const CLR_MAP={1:'#3b82f6',2:'#60a5fa',3:'#10b981',4:'#34d399'};
+const TYP_MAP={1:'exp',2:'exp',3:'ctrl',4:'ctrl'};
+async function refreshAllSitesData(){
+    const tbody=document.getElementById('all-sites-table-body');
+    const days=document.getElementById('date-range-selector')?.value||'7';
+    try{
+        const resp=await fetch(`${API}/power-records/?page=${currentPage}&days=${days}`);
+        const data=await resp.json();
+        const total=data.count||0,pages=Math.max(1,Math.ceil(total/20));
+        setEl('total-pages',pages);setEl('current-page',currentPage);
+        setEl('data-count-info',`${days==='all'?'全部資料':`最近 ${days} 天`} · 共 ${total} 筆`);
+        document.getElementById('prev-btn').disabled=!data.previous;
+        document.getElementById('next-btn').disabled=!data.next;
+        const records=data.results||[];
+        if(!records.length){tbody.innerHTML='<tr><td colspan="7" class="text-center text-muted py-4">無資料</td></tr>';return;}
+        tbody.innerHTML=records.map(r=>{
+            const sid=r.system,bc=TYP_MAP[sid]==='exp'?'badge-exp':'badge-ctrl';
+            return `<tr><td><span class="${bc}">${SYS_MAP[sid]||`系統${sid}`}</span></td><td style="white-space:nowrap">${new Date(r.timestamp).toLocaleString('zh-TW')}</td><td class="fw-bold" style="color:${CLR_MAP[sid]||'#64748b'}">${r.power_output?.toFixed(2)??'--'}</td><td>${r.voltage?.toFixed(2)??'--'}</td><td>${r.current?.toFixed(3)??'--'}</td><td>${r.light_intensity?.toFixed(0)??'--'}</td><td>${r.temperature?.toFixed(1)??'--'}</td></tr>`;
+        }).join('');
+    }catch{tbody.innerHTML='<tr><td colspan="7" class="text-center text-danger">載入失敗</td></tr>';}
+}
+function onDateRangeChange(){currentPage=1;refreshAllSitesData();}
+function prevPage(){if(currentPage>1){currentPage--;refreshAllSitesData();}}
+function nextPage(){const t=parseInt(document.getElementById('total-pages').textContent||'1');if(currentPage<t){currentPage++;refreshAllSitesData();}}
+document.addEventListener('DOMContentLoaded',()=>{
+    refreshOverview();
+    setInterval(()=>{
+        refreshOverview();
+        SYSTEMS.forEach(sys=>{if(document.getElementById(`tab-sys-${sys.id}`)?.classList.contains('active'))loadSysData(sys.id);});
+        if(document.getElementById('tab-compare')?.classList.contains('active'))refreshCompare();
+    },REFRESH_MS);
+});
+
+/* ═══ 固定式面板 ═══ */
+const FP_COLORS={'10°/160°':'#1d4ed8','10°/180°':'#3b82f6','10°/200°':'#93c5fd','15°/160°':'#065f46','15°/180°':'#10b981','15°/200°':'#6ee7b7','20°/160°':'#92400e','20°/180°':'#f59e0b','20°/200°':'#fcd34d','30°/160°':'#7f1d1d','30°/180°':'#ef4444','30°/200°':'#fca5a5'};
+let fpCurveChart=null,fpDailyChart=null,fpDayChart=null,fpTrendChart=null;
+let fpAvailMonths=[],fpSummaryData=null,fpPanelList=[];
+function fpGC(g){return FP_COLORS[g]||'#64748b';}
+function fpDash(pid){return(typeof pid==='string'&&pid.endsWith('_B'))?[5,3]:[];}
+function h2lbl(h){const hh=Math.floor(h),mm=Math.round((h-hh)*60);return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');}
+
+async function fpInit(){
+    try{
+        const resp=await fetch(`${API}/fixed-panels/summary/`);
+        if(!resp.ok)throw new Error();
+        const d=await resp.json();
+        fpSummaryData=d;fpAvailMonths=d.available_months||[];
+        const sel=document.getElementById('fp-month-sel');
+        if(sel){sel.innerHTML=fpAvailMonths.map(m=>`<option value="${m}">${m}</option>`).join('');if(fpAvailMonths.length)sel.value=fpAvailMonths[fpAvailMonths.length-1];}
+        setEl('fp-status',`資料範圍 ${d.date_range?.start} ~ ${d.date_range?.end}，共 ${(d.total_records||0).toLocaleString()} 筆`);
+        fpLoadAll();
+        fpInitPanels(d);
+    }catch(e){setEl('fp-status','固定式面板資料未載入（確認 data/ 目錄已掛載）');}
+}
+async function fpInitPanels(summaryData){
+    try{
+        const groups=summaryData?.panel_groups||[];
+        const tilts=[...new Set(groups.map(g=>g.tilt))].sort((a,b)=>a-b);
+        const azis=[...new Set(groups.map(g=>g.azimuth))].sort((a,b)=>a-b);
+        const tiltOpts=tilts.map(t=>`<option value="${t}">${t}°</option>`).join('');
+        const aziOpts=azis.map(a=>`<option value="${a}">${a}°</option>`).join('');
+        ['fp-day-tilt-sel','fp-trend-tilt-sel'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='<option value="">傾角…</option>'+tiltOpts;});
+        ['fp-day-azi-sel','fp-trend-azi-sel'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='<option value="">方位角…</option>'+aziOpts;});
+        if(tilts.length&&azis.length){
+            const dtilt=document.getElementById('fp-day-tilt-sel'),dazi=document.getElementById('fp-day-azi-sel');
+            if(dtilt)dtilt.value=tilts[0];if(dazi)dazi.value=azis[0];
+            const ttilt=document.getElementById('fp-trend-tilt-sel'),tazi=document.getElementById('fp-trend-azi-sel');
+            if(ttilt)ttilt.value=tilts[0];if(tazi)tazi.value=azis[0];
+        }
+        const tm=document.getElementById('fp-trend-month-sel');
+        if(tm&&fpAvailMonths.length)tm.innerHTML='<option value="">全部月份</option>'+fpAvailMonths.map(m=>`<option value="${m}">${m}</option>`).join('');
+        const di=document.getElementById('fp-day-input');
+        if(di&&summaryData?.date_range?.end){di.value=summaryData.date_range.end;fpLoadDayCurve();}
+        fpLoadPanelTrend();
+    }catch(e){console.error('fpInitPanels',e);}
+}
+function fpOnMonthChange(){fpLoadAll();}
+function fpLoadAll(){fpLoadCurve();fpLoadDaily();fpLoadMonthly();}
+async function fpLoadCurve(){
+    const month=document.getElementById('fp-month-sel')?.value||'';
+    setEl('fp-curve-month-label',month||'全部');
+    try{
+        const resp=await fetch(`${API}/fixed-panels/power-curve/?month=${encodeURIComponent(month)}`);
+        const d=await resp.json();
+        const labels=(d.labels||[]).map(h2lbl);
+        const datasets=(d.datasets||[]).map(ds=>({label:ds.label,data:ds.data,borderColor:FP_COLORS[ds.label]||'#64748b',backgroundColor:'transparent',tension:.35,pointRadius:1,borderWidth:2}));
+        const ctx=document.getElementById('fp-curve-chart');if(!ctx)return;
+        if(fpCurveChart)fpCurveChart.destroy();
+        fpCurveChart=new Chart(ctx,{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{usePointStyle:true,boxWidth:8,font:{size:10}}}},scales:{x:{title:{display:true,text:'時刻',font:{size:11}},grid:{display:false}},y:{title:{display:true,text:'平均功率 (W)',font:{size:11}},beginAtZero:true,grid:{color:'#f1f5f9'}}}}});
+    }catch(e){console.error('fpLoadCurve',e);}
+}
+async function fpLoadDaily(){
+    const month=document.getElementById('fp-month-sel')?.value||'';
+    const tilt=document.getElementById('fp-tilt-sel')?.value||'';
+    const azi=document.getElementById('fp-azi-sel')?.value||'';
+    setEl('fp-daily-month-label',month||'全部');
+    let url=`${API}/fixed-panels/daily/?month=${encodeURIComponent(month)}`;
+    if(tilt)url+=`&tilt=${tilt}`;if(azi)url+=`&azimuth=${azi}`;
+    try{
+        const resp=await fetch(url);const d=await resp.json();
+        const labels=d.labels||[];
+        const datasets=(d.datasets||[]).map(ds=>({label:ds.label,data:ds.data,borderColor:FP_COLORS[ds.label]||'#64748b',backgroundColor:'transparent',tension:.3,pointRadius:1,borderWidth:2}));
+        const ctx=document.getElementById('fp-daily-chart');if(!ctx)return;
+        if(fpDailyChart)fpDailyChart.destroy();
+        fpDailyChart=new Chart(ctx,{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{usePointStyle:true,boxWidth:8,font:{size:10}}}},scales:{x:{ticks:{maxRotation:45,font:{size:9}},grid:{display:false}},y:{beginAtZero:true,grid:{color:'#f1f5f9'},title:{display:true,text:'平均功率 (W)',font:{size:11}}}}}});
+    }catch(e){console.error('fpLoadDaily',e);}
+}
+async function fpLoadMonthly(){
+    try{
+        const month=document.getElementById('fp-month-sel')?.value||'';
+        const year=month?month.split('-')[0]:'';
+        const resp=await fetch(`${API}/fixed-panels/monthly/?year=${year}`);const d=await resp.json();
+        const months=d.months||[],groups=d.groups||[],matrix=d.matrix||{};
+        const thead=document.querySelector('#fp-monthly-table thead tr'),tbody=document.getElementById('fp-monthly-body');
+        if(!thead||!tbody)return;
+        const gl=groups.map(g=>g.group);
+        thead.innerHTML=`<th>月份</th>`+gl.map(g=>`<th style="white-space:nowrap;font-size:.7rem">${g}</th>`).join('');
+        if(!months.length){tbody.innerHTML='<tr><td colspan="13" class="text-center text-muted py-4">無資料</td></tr>';return;}
+        const av=gl.flatMap(g=>months.map(m=>matrix[g]?.[m]||0)),maxVal=Math.max(...av)||1;
+        tbody.innerHTML=months.map(m=>{
+            const cells=gl.map(g=>{
+                const v=matrix[g]?.[m];if(v==null)return '<td style="color:#94a3b8">--</td>';
+                const pct=v/maxVal,alpha=(0.15+pct*0.5).toFixed(2),color=pct>0.7?'#059669':pct>0.4?'#f59e0b':'#64748b';
+                return `<td style="background:rgba(16,185,129,${alpha});font-weight:700;color:${color}">${v.toFixed(1)}</td>`;
+            }).join('');
+            return `<tr><td style="white-space:nowrap;font-weight:600">${m}</td>${cells}</tr>`;
+        }).join('');
+    }catch(e){console.error('fpLoadMonthly',e);}
+}
+
+/* 單日詳細 */
+async function fpLoadDayCurve(){
+    const date=document.getElementById('fp-day-input')?.value;
+    const tilt=document.getElementById('fp-day-tilt-sel')?.value||'';
+    const azi=document.getElementById('fp-day-azi-sel')?.value||'';
+    if(!date){setEl('fp-day-status','請選擇日期');return;}
+    setEl('fp-day-status','載入中…');
+    let url=`${API}/fixed-panels/day-curve/?date=${encodeURIComponent(date)}`;
+    if(tilt)url+=`&tilt=${tilt}`;if(azi)url+=`&azimuth=${azi}`;
+    try{
+        const resp=await fetch(url);const d=await resp.json();
+        const labels=(d.labels||[]).map(h2lbl);
+        const datasets=(d.datasets||[]).map(ds=>({label:ds.label.replace('Panel_',''),data:ds.data,borderColor:fpGC(ds.group),backgroundColor:'transparent',borderDash:fpDash(ds.label),tension:.3,pointRadius:1.5,borderWidth:1.8}));
+        const ctx=document.getElementById('fp-day-chart');if(!ctx)return;
+        if(fpDayChart)fpDayChart.destroy();
+        fpDayChart=new Chart(ctx,{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{usePointStyle:true,boxWidth:8,font:{size:9}}},tooltip:{callbacks:{title:t=>`時刻 ${t[0].label}`,label:t=>`${t.dataset.label}: ${t.raw} W`}}},scales:{x:{title:{display:true,text:'時刻',font:{size:11}},grid:{display:false},ticks:{font:{size:9}}},y:{title:{display:true,text:'功率 (W)',font:{size:11}},beginAtZero:true,grid:{color:'#f1f5f9'}}}}});
+        const tbody=document.getElementById('fp-day-energy-body');
+        const em=d.energy_wh||{};
+        const dsMap={};(d.datasets||[]).forEach(ds=>{dsMap[ds.label]={tilt:ds.tilt,azimuth:ds.azimuth,group:ds.group};});
+        const rows=Object.entries(em).sort(([a],[b])=>a.localeCompare(b)).map(([p,wh])=>{
+            const info=dsMap[p]||{tilt:'--',azimuth:'--',group:''};
+            return `<tr><td style="font-weight:600;color:${fpGC(info.group)}">${p.replace('Panel_','')}</td><td>${info.tilt}°</td><td>${info.azimuth}°</td><td class="fw-bold">${wh.toFixed(1)}</td></tr>`;
+        }).join('');
+        if(tbody)tbody.innerHTML=rows||'<tr><td colspan="4" class="text-center text-muted">無資料</td></tr>';
+        setEl('fp-day-status',`${date} · ${(d.datasets||[]).length} 片面板`);
+    }catch(e){setEl('fp-day-status','載入失敗');console.error('fpLoadDayCurve',e);}
+}
+
+/* 面板組比較 (A vs B) */
+async function fpLoadPanelTrend(){
+    const tilt=document.getElementById('fp-trend-tilt-sel')?.value||'';
+    const azi=document.getElementById('fp-trend-azi-sel')?.value||'';
+    const month=document.getElementById('fp-trend-month-sel')?.value||'';
+    if(!tilt||!azi){setEl('fp-trend-status','請選擇傾角與方位角');return;}
+    setEl('fp-trend-status','載入中…');
+    let url=`${API}/fixed-panels/panel-trend/?tilt=${tilt}&azimuth=${azi}`;
+    if(month)url+=`&month=${encodeURIComponent(month)}`;
+    try{
+        const resp=await fetch(url);const d=await resp.json();
+        const groupKey=`${tilt}°/${azi}°`;const groupColor=fpGC(groupKey);
+        const ctx=document.getElementById('fp-trend-chart');if(!ctx)return;
+        if(fpTrendChart)fpTrendChart.destroy();
+        const datasets=(d.datasets||[]).map((ds,i)=>({
+        label:`${ds.label} 功率 (W)`,
+            data:ds.power||[],
+            borderColor:groupColor,
+            backgroundColor:i===0?groupColor+'22':'transparent',
+            borderDash:i===0?[]:[5,3],
+            fill:i===0,
+            tension:.3,pointRadius:1.5,borderWidth:2
+        }));
+        fpTrendChart=new Chart(ctx,{type:'line',
+            data:{labels:d.labels||[],datasets},
+            options:{responsive:true,maintainAspectRatio:false,
+                plugins:{legend:{position:'top',labels:{usePointStyle:true,boxWidth:8,font:{size:11}}}},
+                scales:{x:{ticks:{maxRotation:45,font:{size:9}},grid:{display:false}},y:{beginAtZero:true,title:{display:true,text:'功率 (W)',font:{size:10}},grid:{color:'#f1f5f9'}}}}
         });
+        setEl('fp-trend-status',`${groupKey} · ${(d.datasets||[]).length} 片 · ${(d.labels||[]).length} 天`);
+    }catch(e){setEl('fp-trend-status','載入失敗');console.error('fpLoadPanelTrend',e);}
+}
 
-        // 切換頁籤功能 (配合 Bootstrap 樣式修改)
-        function switchTab(tabId) {
-            // 隱藏所有 tab-pane
-            document.querySelectorAll('.tab-pane').forEach(el => {
-                el.style.display = 'none';
-                el.classList.remove('show', 'active');
+/* ═══ CSV 分析 ═══ */
+const CSV_COLORS=['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#84cc16','#f97316','#6366f1','#14b8a6','#e11d48','#0ea5e9','#a3e635','#fb923c','#a855f7','#2dd4bf','#fbbf24','#4ade80','#60a5fa'];
+let csvDf=[],csvCurrentYear=null,csvCurrentMonth=null;
+let csvCurrentMonthData=[],csvDayStates={},csvPanelStates={};
+let csvSelectedPanelDay=null;
+let csvDateChart2=null,csvPanelChart2=null,csvStatsChart2=null;
+
+async function csvAutoLoad(){
+    if(csvDf.length>0)return;
+    const statusEl=document.getElementById('csv-auto-status');
+    function setStatus(html){if(statusEl)statusEl.innerHTML=html;}
+    // 最多重試 8 次，間隔 3 秒（後端啟動 / 大檔載入可能需要時間）
+    for(let attempt=1;attempt<=8;attempt++){
+        setStatus(`<i class="fas fa-spinner fa-spin me-1"></i>連線伺服器中... (${attempt}/8)`);
+        try{
+            const resp=await fetch('/api/fixed-panels/raw-csv/');
+            if(resp.status===503){
+                // 後端還在啟動或載入資料，等待後重試
+                setStatus(`<i class="fas fa-spinner fa-spin me-1"></i>後端載入資料中，等待中... (${attempt}/8)`);
+                await new Promise(r=>setTimeout(r,3000));
+                continue;
+            }
+            if(!resp.ok)throw new Error('HTTP '+resp.status);
+            // 讀取並顯示下載進度
+            const reader=resp.body.getReader();
+            const chunks=[];
+            let received=0;
+            while(true){
+                const{done,value}=await reader.read();
+                if(done)break;
+                chunks.push(value);
+                received+=value.length;
+                setStatus(`<i class="fas fa-spinner fa-spin me-1"></i>下載中... ${(received/1024/1024).toFixed(1)} MB`);
+            }
+            const merged=new Uint8Array(received);
+            let pos=0;for(const c of chunks){merged.set(c,pos);pos+=c.length;}
+            const text=new TextDecoder('utf-8').decode(merged);
+            setStatus('<i class="fas fa-check-circle me-1" style="color:#22c55e"></i>伺服器資料');
+            csvParseAndProcess(text,'fixed_panel_data.csv');
+            return;
+        }catch(e){
+            if(attempt<8){
+                setStatus(`<i class="fas fa-spinner fa-spin me-1"></i>連線失敗，3秒後重試... (${attempt}/8)`);
+                await new Promise(r=>setTimeout(r,3000));
+            }else{
+                setStatus(`<i class="fas fa-exclamation-triangle me-1" style="color:#f59e0b"></i>自動載入失敗（${e.message}），請手動上傳`);
+                document.getElementById('csv-manual-upload').style.display='flex';
+                console.error('csvAutoLoad',e);
+            }
+        }
+    }
+}
+function csvLoadFile(event){
+    const file=event.target.files[0];if(!file)return;
+    setEl('csv-status','解析中…');
+    const reader=new FileReader();
+    reader.onload=e=>csvParseAndProcess(e.target.result,file.name);
+    reader.readAsText(file,'UTF-8');
+}
+
+function csvParseCSV(text){
+    const rows=[];
+    const lines=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+    if(!lines.length)return rows;
+    function parseRow(line){
+        const fields=[];let cur='',inQ=false;
+        for(let i=0;i<line.length;i++){
+            const c=line[i];
+            if(c==='"'){inQ=!inQ;}
+            else if(c===','&&!inQ){fields.push(cur.trim());cur='';}
+            else cur+=c;
+        }
+        fields.push(cur.trim());return fields;
+    }
+    const headers=parseRow(lines[0]);
+    for(let i=1;i<lines.length;i++){
+        if(!lines[i].trim())continue;
+        const vals=parseRow(lines[i]);
+        const row={};
+        headers.forEach((h,idx)=>{row[h]=vals[idx]!==undefined?vals[idx]:'';});
+        rows.push(row);
+    }
+    return rows;
+}
+
+function csvParseAndProcess(text,filename){
+    try{
+        const rows=csvParseCSV(text);
+        if(!rows.length){setEl('csv-status','無法解析 CSV，請確認格式');return;}
+        csvDf=rows.map(row=>{
+            // 支援 YYYY-MM-DD 和 YYYY/M/D 兩種格式
+            let dateStr=row['date']||row['timestamp']||'';
+            if(dateStr.includes('/'))dateStr=dateStr.replace(/(\d+)\/(\d+)\/(\d+)/,(_,y,m,d)=>`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`);
+            const d=new Date(dateStr);
+            const ok=!isNaN(d.getTime());
+            return{...row,
+                _year:ok?d.getFullYear():null,
+                _month:ok?d.getMonth()+1:null,
+                _day:ok?d.getDate():null,
+                _hour:parseFloat(row['hour_decimal'])||0,
+                _power:parseFloat(row['power_W'])||0,
+                _tilt:row['tilt_angle']!==''?parseFloat(row['tilt_angle']):null,
+                _azi:(()=>{const v=parseFloat(row['azimuth_angle']);return isNaN(v)?null:v;})(),
+                _panel:row['panel_id']||null,
+            };
+        }).filter(r=>r._year!==null&&!isNaN(r._year));
+        const years=[...new Set(csvDf.map(r=>r._year))].sort((a,b)=>a-b);
+        csvCurrentYear=years[years.length-1];
+        const yb=document.getElementById('csv-year-btns');
+        if(yb)yb.innerHTML=years.map(y=>`<button class="btn btn-sm ${y===csvCurrentYear?'btn-primary':'btn-outline-secondary'}" id="csv-yr-${y}" onclick="csvSetYear(${y})">${y}年</button>`).join('');
+        csvUpdateCsvMonths(csvCurrentYear);
+        document.getElementById('csv-controls').style.display='block';
+        setEl('csv-status',`已載入 ${csvDf.length.toLocaleString()} 筆 · ${filename}`);
+    }catch(e){setEl('csv-status','解析失敗：'+e.message);console.error('csvParseAndProcess',e);}
+}
+
+function csvUpdateCsvMonths(year){
+    const months=[...new Set(csvDf.filter(r=>r._year===year).map(r=>r._month))].sort((a,b)=>a-b);
+    csvCurrentMonth=months[months.length-1];
+    const mb=document.getElementById('csv-month-btns');
+    if(mb)mb.innerHTML=months.map(m=>`<button class="btn btn-sm ${m===csvCurrentMonth?'btn-primary':'btn-outline-secondary'}" id="csv-mo-${m}" onclick="csvSetMonth(${m})">${m}月</button>`).join('');
+    csvProcessMonth();
+}
+
+function csvSetYear(y){
+    csvCurrentYear=y;
+    document.querySelectorAll('[id^="csv-yr-"]').forEach(b=>{b.className=b.className.replace('btn-primary','btn-outline-secondary');});
+    const btn=document.getElementById('csv-yr-'+y);if(btn)btn.className=btn.className.replace('btn-outline-secondary','btn-primary');
+    csvUpdateCsvMonths(y);
+}
+
+function csvSetMonth(m){
+    csvCurrentMonth=m;
+    document.querySelectorAll('[id^="csv-mo-"]').forEach(b=>{b.className=b.className.replace('btn-primary','btn-outline-secondary');});
+    const btn=document.getElementById('csv-mo-'+m);if(btn)btn.className=btn.className.replace('btn-outline-secondary','btn-primary');
+    csvProcessMonth();
+}
+
+function csvProcessMonth(){
+    csvCurrentMonthData=csvDf.filter(r=>r._year===csvCurrentYear&&r._month===csvCurrentMonth);
+    setEl('csv-period-label',`${csvCurrentYear}年${csvCurrentMonth}月 · ${csvCurrentMonthData.length.toLocaleString()} 筆`);
+    csvBuildAngleSelectors();
+    csvBuildDayCheckboxes();
+    csvBuildPanelTab();
+    csvGenerateDatePlot();
+}
+
+function csvBuildAngleSelectors(){
+    const tilts=[...new Set(csvCurrentMonthData.map(r=>r._tilt).filter(v=>v!==null))].sort((a,b)=>a-b);
+    const azis=[...new Set(csvCurrentMonthData.map(r=>r._azi).filter(v=>v!==null))].sort((a,b)=>a-b);
+    ['csv-tilt-sel','csv-stats-tilt-sel'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='<option value="">所有傾角</option>'+tilts.map(t=>`<option value="${t}">${t}°</option>`).join('');});
+    ['csv-azi-sel','csv-stats-azi-sel'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='<option value="">所有方位角</option>'+azis.map(a=>`<option value="${a}">${a}°</option>`).join('');});
+}
+
+function csvBuildDayCheckboxes(){
+    const days=[...new Set(csvCurrentMonthData.map(r=>r._day))].sort((a,b)=>a-b);
+    csvDayStates={};days.forEach(d=>{csvDayStates[d]=false;});
+    const c=document.getElementById('csv-day-checkboxes');
+    if(c)c.innerHTML=days.map(d=>`<div><label style="font-size:.82rem;cursor:pointer"><input type="checkbox" id="csv-day-cb-${d}" style="margin-right:4px" onchange="csvDayStates[${d}]=this.checked"> ${csvCurrentMonth}月${d}日</label></div>`).join('');
+}
+
+function csvBuildPanelTab(){
+    const days=[...new Set(csvCurrentMonthData.map(r=>r._day))].sort((a,b)=>a-b);
+    csvSelectedPanelDay=days[0]||null;
+    const radios=document.getElementById('csv-panel-day-radios');
+    if(radios)radios.innerHTML=days.map((d,i)=>`<div><label style="font-size:.82rem;cursor:pointer"><input type="radio" name="csv-panel-day" value="${d}" ${i===0?'checked':''} style="margin-right:4px" onchange="csvSelectedPanelDay=${d}"> ${csvCurrentMonth}月${d}日</label></div>`).join('');
+    csvBuildPanelCheckboxes('','');
+}
+
+function csvBuildPanelCheckboxes(tilt,azi){
+    let data=csvCurrentMonthData;
+    if(tilt!=='')data=data.filter(r=>r._tilt===parseFloat(tilt));
+    if(azi!=='')data=data.filter(r=>r._azi===parseFloat(azi));
+    const panels=[...new Set(data.map(r=>r._panel).filter(v=>v))].sort();
+    csvPanelStates={};panels.forEach(p=>{csvPanelStates[p]=false;});
+    const c=document.getElementById('csv-panel-checkboxes');
+    if(c)c.innerHTML=panels.map(p=>{
+        const sid='csv-pcb-'+p.replace(/[^a-z0-9]/gi,'_');
+        return `<div><label style="font-size:.82rem;cursor:pointer"><input type="checkbox" id="${sid}" style="margin-right:4px" onchange="csvPanelStates['${p}']=this.checked"> ${p}</label></div>`;
+    }).join('');
+}
+
+function csvFilterPanels(){
+    const tilt=document.getElementById('csv-tilt-sel')?.value||'';
+    const azi=document.getElementById('csv-azi-sel')?.value||'';
+    csvBuildPanelCheckboxes(tilt,azi);
+}
+
+function csvSelectAllDays(val){
+    Object.keys(csvDayStates).forEach(d=>{
+        const k=parseInt(d);csvDayStates[k]=val;
+        const cb=document.getElementById('csv-day-cb-'+k);if(cb)cb.checked=val;
+    });
+}
+
+function csvSelectNDays(n){
+    csvSelectAllDays(false);
+    const days=Object.keys(csvDayStates).map(Number).sort((a,b)=>a-b);
+    (n>0?days.slice(0,n):days.slice(n)).forEach(d=>{
+        csvDayStates[d]=true;
+        const cb=document.getElementById('csv-day-cb-'+d);if(cb)cb.checked=true;
+    });
+    csvGenerateDatePlot();
+}
+
+function csvSelectAllPanels(val){
+    Object.keys(csvPanelStates).forEach(p=>{
+        csvPanelStates[p]=val;
+        const sid='csv-pcb-'+p.replace(/[^a-z0-9]/gi,'_');
+        const cb=document.getElementById(sid);if(cb)cb.checked=val;
+    });
+}
+
+function csvHourLabel(h){const hh=Math.floor(h),mm=Math.round((h-hh)*60);return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');}
+
+function csvGenerateDatePlot(){
+    const selDays=Object.entries(csvDayStates).filter(([,v])=>v).map(([d])=>parseInt(d));
+    // 10分鐘分桶：所有資料依 floor(minutes/10)*10 分桶，避免精確秒數不同造成斷點
+    const rangeData=csvCurrentMonthData.filter(r=>r._hour>=4&&r._hour<=19);
+    const pivot={};
+    rangeData.forEach(r=>{
+        const key=Math.round(r._hour*60/10)*10; // 分桶鍵（分鐘，向下取整到10的倍數）
+        if(!pivot[r._day])pivot[r._day]={};
+        if(!pivot[r._day][key])pivot[r._day][key]=[];
+        pivot[r._day][key].push(r._power);
+    });
+    const keys=[...new Set(rangeData.map(r=>Math.round(r._hour*60/10)*10))].sort((a,b)=>a-b);
+    const labels=keys.map(k=>String(Math.floor(k/60)).padStart(2,'0')+':'+String(k%60).padStart(2,'0'));
+    const datasets=selDays.map((d,i)=>{
+        const color=CSV_COLORS[i%CSV_COLORS.length];
+        const data=keys.map(k=>{const arr=pivot[d]?.[k];return arr?Math.round(arr.reduce((a,b)=>a+b,0)/arr.length*100)/100:null;});
+        return{label:`${csvCurrentMonth}月${d}日`,data,borderColor:color,backgroundColor:color+'18',tension:.2,pointRadius:1.5,borderWidth:1.8,spanGaps:false};
+    });
+    const ctx=document.getElementById('csv-date-chart');if(!ctx)return;
+    if(csvDateChart2)csvDateChart2.destroy();
+    csvDateChart2=new Chart(ctx,{type:'line',
+        data:{labels,datasets:datasets.length?datasets:[{label:'尚未選擇日期',data:[],borderColor:'#94a3b8'}]},
+        options:{responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{position:'right',labels:{usePointStyle:true,boxWidth:8,font:{size:10}}}},
+            scales:{x:{title:{display:true,text:'時刻 (10分鐘解析度)',font:{size:11}},grid:{display:false},
+                        ticks:{font:{size:9},maxTicksLimit:20,maxRotation:45}},
+                    y:{title:{display:true,text:'發電量 (W)',font:{size:11}},beginAtZero:true,grid:{color:'#f1f5f9'}}}}});
+    setEl('csv-date-chart-label',selDays.length?`已選 ${selDays.length} 天`:'請勾選日期後按「產生圖表」');
+}
+
+function csvGeneratePanelPlot(){
+    const day=csvSelectedPanelDay;
+    if(!day){setEl('csv-panel-chart-label','請先選擇日期');return;}
+    const selPanels=Object.entries(csvPanelStates).filter(([,v])=>v).map(([p])=>p);
+    // 10分鐘分桶：避免精確秒數不同造成斷點
+    let dayData=csvCurrentMonthData.filter(r=>r._day===day&&r._hour>=4&&r._hour<=19);
+    const allPanels=[...new Set(dayData.map(r=>r._panel).filter(v=>v))].sort();
+    const panels=selPanels.length?selPanels.filter(p=>allPanels.includes(p)):allPanels;
+    if(selPanels.length)dayData=dayData.filter(r=>panels.includes(r._panel));
+    const keys=[...new Set(dayData.map(r=>Math.round(r._hour*60/10)*10))].sort((a,b)=>a-b);
+    const labels=keys.map(k=>String(Math.floor(k/60)).padStart(2,'0')+':'+String(k%60).padStart(2,'0'));
+    let datasets;
+    if(!panels.length){
+        const byK={};dayData.forEach(r=>{const k=Math.round(r._hour*60/10)*10;if(!byK[k])byK[k]=[];byK[k].push(r._power);});
+        datasets=[{label:`${csvCurrentMonth}月${day}日 平均`,data:keys.map(k=>{const a=byK[k];return a?Math.round(a.reduce((x,y)=>x+y,0)/a.length*10)/10:null;}),borderColor:'#3b82f6',tension:.2,pointRadius:1.5,borderWidth:2,spanGaps:false}];
+    }else{
+        datasets=panels.map((p,i)=>{
+            const color=CSV_COLORS[i%CSV_COLORS.length];
+            const pd=dayData.filter(r=>r._panel===p);
+            const byK={};pd.forEach(r=>{const k=Math.round(r._hour*60/10)*10;if(!byK[k])byK[k]=[];byK[k].push(r._power);});
+            const data=keys.map(k=>{const a=byK[k];return a?Math.round(a.reduce((x,y)=>x+y,0)/a.length*10)/10:null;});
+            return{label:p,data,borderColor:color,backgroundColor:'transparent',tension:.2,pointRadius:1,borderWidth:1.5,spanGaps:false};
+        });
+    }
+    const ctx=document.getElementById('csv-panel-chart');if(!ctx)return;
+    if(csvPanelChart2)csvPanelChart2.destroy();
+    csvPanelChart2=new Chart(ctx,{type:'line',data:{labels,datasets},
+        options:{responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{position:'right',labels:{usePointStyle:true,boxWidth:8,font:{size:9}}}},
+            scales:{x:{title:{display:true,text:'時刻 (10分鐘解析度)',font:{size:11}},grid:{display:false},
+                        ticks:{font:{size:9},maxTicksLimit:20,maxRotation:45}},
+                    y:{title:{display:true,text:'Power (W)',font:{size:11}},beginAtZero:true,grid:{color:'#f1f5f9'}}}}});
+    setEl('csv-panel-chart-label',`${csvCurrentMonth}月${day}日 · ${datasets.length} 片面板`);
+}
+
+function csvGenerateStatsPlot(){
+    const chartType=document.querySelector('input[name="csv-chart-type"]:checked')?.value||'daily_total';
+    const tilt=document.getElementById('csv-stats-tilt-sel')?.value||'';
+    const azi=document.getElementById('csv-stats-azi-sel')?.value||'';
+    let data=csvCurrentMonthData;
+    if(tilt!=='')data=data.filter(r=>r._tilt===parseFloat(tilt));
+    if(azi!=='')data=data.filter(r=>r._azi===parseFloat(azi));
+    // 10分鐘分桶：全部資料納入，依 floor(min/10)*10 分桶後每桶取一次功率
+    const intData=data;
+    let labels,values,title,ylabel,bgColor;
+    if(chartType==='daily_total'){
+        // 先對每天每個10分鐘桶取平均，再 sum → kWh
+        const byDayBucket={};
+        intData.forEach(r=>{
+            const k=Math.round(r._hour*60/10)*10;
+            const dk=`${r._day}_${k}`;
+            if(!byDayBucket[dk])byDayBucket[dk]={day:r._day,vals:[]};
+            byDayBucket[dk].vals.push(r._power);
+        });
+        const byDay={};
+        Object.values(byDayBucket).forEach(({day,vals})=>{
+            if(!byDay[day])byDay[day]=0;
+            byDay[day]+=vals.reduce((a,b)=>a+b,0)/vals.length;
+        });
+        const entries=Object.entries(byDay).sort((a,b)=>b[1]-a[1]);
+        labels=entries.map(([d])=>`${csvCurrentMonth}月${d}日`);
+        values=entries.map(([,v])=>Math.round(v/600)/10);
+        title=`${csvCurrentMonth}月份各日累計發電量`;ylabel='累計發電量 (kWh)';bgColor='#7dd3fc';
+    }else if(chartType==='panel_total'){
+        // 先分桶取平均，再 sum → kWh
+        const byPBucket={};
+        intData.forEach(r=>{
+            if(!r._panel)return;
+            const k=Math.round(r._hour*60/10)*10;
+            const dk=`${r._panel}_${r._day}_${k}`;
+            if(!byPBucket[dk])byPBucket[dk]={panel:r._panel,vals:[]};
+            byPBucket[dk].vals.push(r._power);
+        });
+        const byP={};
+        Object.values(byPBucket).forEach(({panel,vals})=>{
+            if(!byP[panel])byP[panel]=0;
+            byP[panel]+=vals.reduce((a,b)=>a+b,0)/vals.length;
+        });
+        const entries=Object.entries(byP).sort((a,b)=>b[1]-a[1]).slice(0,30);
+        labels=entries.map(([p])=>p);
+        values=entries.map(([,v])=>Math.round(v/600)/10);
+        title=`${csvCurrentMonth}月份各面板累計發電量`;ylabel='累計發電量 (kWh)';bgColor='#86efac';
+    }else{
+        const byP={};
+        intData.forEach(r=>{if(!r._panel)return;if(!byP[r._panel])byP[r._panel]=[];byP[r._panel].push(r._power);});
+        const entries=Object.entries(byP).map(([p,arr])=>[p,arr.reduce((a,b)=>a+b,0)/arr.length]).sort((a,b)=>b[1]-a[1]).slice(0,30);
+        labels=entries.map(([p])=>p);
+        values=entries.map(([,v])=>Math.round(v*10)/10);
+        title=`${csvCurrentMonth}月份各面板平均發電量`;ylabel='平均發電量 (W)';bgColor='#fca5a5';
+    }
+    const titleEl=document.getElementById('csv-stats-chart-title');
+    if(titleEl)titleEl.innerHTML=`<i class="fas fa-chart-bar" style="color:#7c3aed"></i>${title}`;
+    const ctx=document.getElementById('csv-stats-chart');if(!ctx)return;
+    if(csvStatsChart2)csvStatsChart2.destroy();
+    csvStatsChart2=new Chart(ctx,{type:'bar',
+        data:{labels,datasets:[{label:ylabel,data:values,backgroundColor:bgColor,borderColor:bgColor,borderRadius:4}]},
+        options:{responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{display:false}},
+            scales:{x:{ticks:{maxRotation:45,font:{size:9}},grid:{display:false}},
+                    y:{title:{display:true,text:ylabel,font:{size:10}},beginAtZero:true,grid:{color:'#f1f5f9'}}}}});
+}
+
+function csvSwitchSubTab(tab){
+    ['date-cmp','panel-cmp','monthly-stats'].forEach(t=>{
+        const pane=document.getElementById('csv-pane-'+t);if(pane)pane.style.display=t===tab?'block':'none';
+        const btn=document.getElementById('csv-subtab-'+t);
+        if(btn){
+            btn.classList.toggle('active',t===tab);
+            btn.style.borderBottomColor=t===tab?'#7c3aed':'transparent';
+        }
+    });
+}
+
+/* ═══ Z3A 採集 ═══════════════════════════════════════════════════════════════
+   measured_fun 對應（由 Fiddler 實測確認）：
+     fun=1  dcv_value   電壓  raw/1,000,000 → V
+     fun=4  dcma_value  電流mA (此批裝置恆為0)
+     fun=5  dca_value   電流  raw/1,000,000 → mA
+   功率 (W) = voltage_V × (current_mA / 1000)
+═══════════════════════════════════════════════════════════════════════════════ */
+const Z3A_COLORS=['#e11d48','#f97316','#eab308','#22c55e','#06b6d4','#3b82f6','#8b5cf6','#ec4899',
+                  '#ef4444','#fb923c','#facc15','#4ade80','#22d3ee','#60a5fa','#a78bfa','#f472b6',
+                  '#dc2626','#ea580c','#ca8a04','#16a34a','#0891b2','#2563eb','#7c3aed','#db2777',
+                  '#b91c1c','#c2410c','#a16207','#15803d'];
+
+let z3aMainChart=null;
+let z3aDevices=[];           // [{DeviceId, DeviceType, ...}]
+let z3aDeviceStates={};      // {DeviceId: true/false}
+let z3aInitDone=false;
+let z3aVoltData={};          // {DeviceId: [{time,value}]}
+let z3aCurrentData={};       // {DeviceId: [{time,value}]}
+
+/* 初始化預設日期（最近 7 天） */
+function z3aInitDates(){
+    const end=new Date(),start=new Date();
+    start.setDate(end.getDate()-7);
+    const fmt=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    document.getElementById('z3a-end').value=fmt(end);
+    document.getElementById('z3a-start').value=fmt(start);
+}
+
+/* Token 狀態檢查 */
+async function z3aCheckStatus(){
+    try{
+        const r=await fetch(`${API}/z3a/status/`);
+        const d=await r.json();
+        const el=document.getElementById('z3a-token-status');
+        const btn=document.getElementById('z3a-refresh-btn');
+        if(d.token_valid){
+            el.innerHTML=`<i class="fas fa-check-circle me-1" style="color:#22c55e"></i>Token 有效，到期：${d.token_expires}`;
+            if(btn)btn.style.display='none';
+        }else{
+            el.innerHTML=`<i class="fas fa-exclamation-triangle me-1" style="color:#f59e0b"></i>Token 已過期或未設定`;
+            if(btn)btn.style.display='';
+        }
+    }catch(e){
+        setEl('z3a-token-status','無法連接後端');
+    }
+}
+
+async function z3aRefreshToken(){
+    setEl('z3a-token-status','重新登入中…');
+    try{
+        const r=await fetch(`${API}/z3a/refresh/`,{method:'POST'});
+        const d=await r.json();
+        if(d.success){
+            document.getElementById('z3a-token-status').innerHTML=
+                `<i class="fas fa-check-circle me-1" style="color:#22c55e"></i>Token 更新成功，到期：${d.expires}`;
+            document.getElementById('z3a-refresh-btn').style.display='none';
+        }else{
+            document.getElementById('z3a-token-status').innerHTML=
+                `<i class="fas fa-times-circle me-1" style="color:#ef4444"></i>${d.error||'重新登入失敗'}`;
+        }
+    }catch(e){setEl('z3a-token-status','重新登入請求失敗');}
+}
+
+/* 裝置清單 */
+async function z3aLoadDevices(){
+    document.getElementById('z3a-device-list').innerHTML=
+        '<div class="text-muted text-center py-3"><i class="fas fa-spinner fa-spin"></i> 載入中…</div>';
+    try{
+        const r=await fetch(`${API}/z3a/devices/`);
+        const d=await r.json();
+        const list=(d.data||d||[]);
+        z3aDevices=list;
+        z3aDeviceStates={};
+        list.forEach(dev=>{z3aDeviceStates[dev.DeviceId]=false;});
+        setEl('z3a-device-count',`${list.length} 個裝置`);
+        const container=document.getElementById('z3a-device-list');
+        if(!list.length){container.innerHTML='<div class="text-muted text-center py-3">無裝置資料</div>';return;}
+        container.innerHTML=list.map((dev,i)=>{
+            const sid='z3a-cb-'+dev.DeviceId.replace(/[^a-z0-9]/gi,'_');
+            return `<div style="padding:3px 0;border-bottom:1px solid #f1f5f9">
+<label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+<input type="checkbox" id="${sid}" onchange="z3aDeviceStates['${dev.DeviceId}']=this.checked" style="flex-shrink:0">
+<span style="font-size:.8rem;font-weight:600;color:#1e293b">${dev.DeviceId}</span>
+<span style="font-size:.7rem;color:#94a3b8">${dev.Alias||dev.DeviceName||''}</span>
+</label></div>`;
+        }).join('');
+    }catch(e){
+        document.getElementById('z3a-device-list').innerHTML=
+            `<div class="text-danger text-center py-3" style="font-size:.8rem">載入失敗：${e.message}</div>`;
+    }
+}
+
+function z3aSelectAll(val){
+    Object.keys(z3aDeviceStates).forEach(id=>{
+        z3aDeviceStates[id]=val;
+        const el=document.getElementById('z3a-cb-'+id.replace(/[^a-z0-9]/gi,'_'));
+        if(el)el.checked=val;
+    });
+}
+
+/* 載入所選裝置的歷史數據並繪圖 */
+async function z3aFetchSelected(){
+    const selDevices=z3aDevices.filter(d=>z3aDeviceStates[d.DeviceId]);
+    if(!selDevices.length){setEl('z3a-chart-status','請先勾選裝置');return;}
+    const start=document.getElementById('z3a-start').value;
+    const end=document.getElementById('z3a-end').value;
+    const channel=document.getElementById('z3a-fun-sel').value;
+    if(!start||!end){setEl('z3a-chart-status','請設定日期範圍');return;}
+
+    setEl('z3a-chart-status',`載入 ${selDevices.length} 台裝置數據…`);
+    z3aVoltData={};z3aCurrentData={};
+
+    // 並行拉取所有裝置
+    await Promise.all(selDevices.map(async dev=>{
+        const baseQ=`device_id=${dev.DeviceId}&device_type=${dev.DeviceType||''}&start=${start}&end=${end}&accuracy=10m`;
+        try{
+            const [rv,ri]=await Promise.all([
+                fetch(`${API}/z3a/history/?${baseQ}&measured_fun=1`).then(r=>r.json()),
+                fetch(`${API}/z3a/history/?${baseQ}&measured_fun=5`).then(r=>r.json()),
+            ]);
+            // 電壓：raw / 1,000,000 → V
+            z3aVoltData[dev.DeviceId]=(rv.series||[]).map(p=>({time:p.time,value:p.value!=null?p.value/1e6:null}));
+            // 電流：raw / 1,000,000 → mA
+            z3aCurrentData[dev.DeviceId]=(ri.series||[]).map(p=>({time:p.time,value:p.value!=null?p.value/1e6:null}));
+        }catch(e){console.error('z3a fetch error',dev.DeviceId,e);}
+    }));
+
+    z3aRenderChart(channel,selDevices,start,end);
+    z3aRenderSummary(selDevices,channel);
+}
+
+function z3aRenderChart(channel,selDevices,start,end){
+    // 收集所有時間點 union
+    const timeSet=new Set();
+    selDevices.forEach(dev=>{
+        (z3aVoltData[dev.DeviceId]||[]).forEach(p=>{if(p.time)timeSet.add(p.time);});
+        (z3aCurrentData[dev.DeviceId]||[]).forEach(p=>{if(p.time)timeSet.add(p.time);});
+    });
+    const times=[...timeSet].sort();
+    const labels=times.map(t=>{
+        const d=new Date(t);
+        return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} `+
+               `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    });
+
+    const datasets=selDevices.map((dev,i)=>{
+        const color=Z3A_COLORS[i%Z3A_COLORS.length];
+        const voltMap={},currMap={};
+        (z3aVoltData[dev.DeviceId]||[]).forEach(p=>{voltMap[p.time]=p.value;});
+        (z3aCurrentData[dev.DeviceId]||[]).forEach(p=>{currMap[p.time]=p.value;});
+        let data,ylabel;
+        if(channel==='voltage'){
+            data=times.map(t=>voltMap[t]!=null?Math.round(voltMap[t]*1000)/1000:null);
+            ylabel='電壓 (V)';
+        }else if(channel==='current'){
+            data=times.map(t=>currMap[t]!=null?Math.round(currMap[t]*100)/100:null);
+            ylabel='電流 (mA)';
+        }else{ // power
+            data=times.map(t=>{
+                const v=voltMap[t],c=currMap[t];
+                return (v!=null&&c!=null)?Math.round(v*(c/1000)*1000)/1000:null;
             });
-            // 移除所有 nav-link 的 active 狀態
-            document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
-
-            // 顯示目標 tab
-            const targetPane = document.getElementById(tabId);
-            if (targetPane) {
-                targetPane.style.display = 'block';
-                // 稍微延遲加上 show class 以觸發淡入動畫 (Bootstrap fade)
-                setTimeout(() => targetPane.classList.add('show', 'active'), 50);
-            }
-
-            // 設定按鈕 active
-            const buttons = document.querySelectorAll(`button[onclick="switchTab('${tabId}')"]`);
-            buttons.forEach(btn => btn.classList.add('active'));
-
-            if (tabId === 'test-system') refreshSiteData('test', 1);
-            else if (tabId === 'overview') refreshOverview();
+            ylabel='功率 (W)';
         }
+        return{label:dev.DeviceId,data,borderColor:color,backgroundColor:'transparent',
+               tension:.2,pointRadius:.5,borderWidth:1.5,spanGaps:false};
+    });
 
-        // 刷新總覽頁面
-        async function refreshOverview() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/power-records/latest/`);
-                if (response.ok) {
-                    const data = await response.json();
-                    document.getElementById('overview-test-power').textContent = data.power_output ? data.power_output.toFixed(2) : '--';
-                    document.getElementById('overview-test-update').textContent = new Date(data.timestamp).toLocaleTimeString('zh-TW');
-                }
-                await refreshAllSitesData();
-            } catch (error) { console.error("刷新總覽失敗:", error); }
+    // Y 軸 label
+    const ylabels={voltage:'電壓 (V)',current:'電流 (mA)',power:'功率 (W)'};
+    const yLabel=ylabels[channel]||channel;
+
+    const titles={voltage:'電壓趨勢',current:'電流趨勢',power:'功率趨勢'};
+    const titleEl=document.getElementById('z3a-chart-title');
+    if(titleEl)titleEl.innerHTML=`<i class="fas fa-chart-line" style="color:#e11d48"></i>Z3A ${titles[channel]||channel}`;
+
+    const ctx=document.getElementById('z3a-main-chart');if(!ctx)return;
+    if(z3aMainChart)z3aMainChart.destroy();
+    z3aMainChart=new Chart(ctx,{type:'line',
+        data:{labels,datasets},
+        options:{responsive:true,maintainAspectRatio:false,
+            animation:false,
+            plugins:{legend:{position:'right',labels:{usePointStyle:true,boxWidth:8,font:{size:9},
+                filter:i=>selDevices.length<=20||i.datasetIndex<20}}},
+            scales:{
+                x:{grid:{display:false},ticks:{font:{size:9},maxTicksLimit:24,maxRotation:45}},
+                y:{title:{display:true,text:yLabel,font:{size:11}},beginAtZero:channel!=='voltage',grid:{color:'#f1f5f9'}}
+            }}
+    });
+    setEl('z3a-chart-status',`${selDevices.length} 台裝置 · ${start} ~ ${end} · ${times.length} 個時間點`);
+}
+
+function z3aRenderSummary(selDevices,channel){
+    const tbody=document.getElementById('z3a-summary-body');if(!tbody)return;
+    if(!selDevices.length){tbody.innerHTML='<tr><td colspan="5" class="text-center text-muted">尚無資料</td></tr>';return;}
+    tbody.innerHTML=selDevices.map((dev,i)=>{
+        const color=Z3A_COLORS[i%Z3A_COLORS.length];
+        let vals=[];
+        if(channel==='voltage')vals=(z3aVoltData[dev.DeviceId]||[]).map(p=>p.value).filter(v=>v!=null);
+        else if(channel==='current')vals=(z3aCurrentData[dev.DeviceId]||[]).map(p=>p.value).filter(v=>v!=null);
+        else{
+            const vl=z3aVoltData[dev.DeviceId]||[],cl=z3aCurrentData[dev.DeviceId]||[];
+            const vm={},cm={};
+            vl.forEach(p=>{vm[p.time]=p.value;});cl.forEach(p=>{cm[p.time]=p.value;});
+            vals=Object.keys(vm).filter(t=>cm[t]!=null).map(t=>vm[t]*(cm[t]/1000)).filter(v=>v!=null);
         }
+        if(!vals.length)return`<tr><td style="color:${color};font-weight:600">${dev.DeviceId}</td><td colspan="4" class="text-muted">無資料</td></tr>`;
+        const mn=Math.min(...vals),mx=Math.max(...vals),avg=vals.reduce((a,b)=>a+b,0)/vals.length;
+        const u=channel==='voltage'?'V':channel==='current'?'mA':'W';
+        return`<tr><td style="color:${color};font-weight:600;font-size:.8rem">${dev.DeviceId}</td>
+<td>${mn.toFixed(3)} ${u}</td><td>${mx.toFixed(3)} ${u}</td><td>${avg.toFixed(3)} ${u}</td><td>${vals.length}</td></tr>`;
+    }).join('');
+}
 
-        // 刷新測試系統詳細數據 (核心修改處)
-        async function refreshSiteData(elementPrefix, systemId) {
-            try {
-                const powerEl = document.getElementById(`${elementPrefix}-power`);
-                const statusEl = document.getElementById(`${elementPrefix}-status`);
+/* 初始化（進入分頁時呼叫） */
+async function z3aInit(){
+    if(z3aInitDone)return;
+    z3aInitDone=true;
+    z3aInitDates();
+    await z3aCheckStatus();
+    await z3aLoadDevices();
+}
 
-                // 獲取最新數據
-                const response = await fetch(`${API_BASE_URL}/power-records/latest/?system=${systemId}`);
-
-                if (!response.ok) throw new Error("API Error");
-                const data = await response.json();
-
-                if (data) {
-                    // 1. 更新基本數據
-                    if (powerEl) powerEl.textContent = data.power_output ? data.power_output.toFixed(2) : '--';
-                    document.getElementById(`${elementPrefix}-voltage`).textContent = data.voltage ? data.voltage.toFixed(2) : '--';
-                    document.getElementById(`${elementPrefix}-current`).textContent = data.current ? data.current.toFixed(3) : '--';
-
-                    // 2. 更新四方位光照 (暫時邏輯：若後端沒分開，則四個都顯示相同值)
-                    // 未來請在後端 API 加入 light_east, light_west 等欄位
-                    const baseLight = data.light_intensity ? data.light_intensity.toFixed(1) : '--';
-                    document.getElementById(`${elementPrefix}-light-east`).textContent = data.light_east || baseLight;
-                    document.getElementById(`${elementPrefix}-light-west`).textContent = data.light_west || baseLight;
-                    document.getElementById(`${elementPrefix}-light-south`).textContent = data.light_south || baseLight;
-                    document.getElementById(`${elementPrefix}-light-north`).textContent = data.light_north || baseLight;
-
-                    // 3. 更新樹莓派電源數據
-                    const rpiVoltageEl = document.getElementById(`${elementPrefix}-rpi-voltage`);
-                    const rpiCurrentEl = document.getElementById(`${elementPrefix}-rpi-current`);
-                    const rpiPowerEl = document.getElementById(`${elementPrefix}-rpi-power`);
-                    if (rpiVoltageEl) rpiVoltageEl.textContent = data.raspberry_pi_voltage ? data.raspberry_pi_voltage.toFixed(2) : '--';
-                    if (rpiCurrentEl) rpiCurrentEl.textContent = data.raspberry_pi_current ? data.raspberry_pi_current.toFixed(1) : '--';
-                    if (rpiPowerEl) rpiPowerEl.textContent = data.raspberry_pi_power ? data.raspberry_pi_power.toFixed(2) : '--';
-
-                    // 4. 更新南北推桿
-                    const nsAngleEl = document.getElementById(`${elementPrefix}-ns-angle`);
-                    const nsExtEl = document.getElementById(`${elementPrefix}-ns-extension`);
-                    if (nsAngleEl) nsAngleEl.textContent = data.ns_actuator_angle ? data.ns_actuator_angle.toFixed(1) : '--';
-                    if (nsExtEl) nsExtEl.textContent = data.ns_actuator_extension ? data.ns_actuator_extension.toFixed(0) : '--';
-
-                    // 5. 更新東西推桿
-                    const ewAngleEl = document.getElementById(`${elementPrefix}-ew-angle`);
-                    const ewExtEl = document.getElementById(`${elementPrefix}-ew-extension`);
-                    if (ewAngleEl) ewAngleEl.textContent = data.ew_actuator_angle ? data.ew_actuator_angle.toFixed(1) : '--';
-                    if (ewExtEl) ewExtEl.textContent = data.ew_actuator_extension ? data.ew_actuator_extension.toFixed(0) : '--';
-
-                    // 6. 更新推桿總功率
-                    const actTotalVEl = document.getElementById(`${elementPrefix}-actuator-total-voltage`);
-                    const actTotalCEl = document.getElementById(`${elementPrefix}-actuator-total-current`);
-                    const actTotalPEl = document.getElementById(`${elementPrefix}-actuator-total-power`);
-                    if (actTotalVEl) actTotalVEl.textContent = data.actuator_total_voltage ? data.actuator_total_voltage.toFixed(2) : '--';
-                    if (actTotalCEl) actTotalCEl.textContent = data.actuator_total_current ? data.actuator_total_current.toFixed(1) : '--';
-                    if (actTotalPEl) actTotalPEl.textContent = data.actuator_total_power ? data.actuator_total_power.toFixed(2) : '--';
-
-                    console.log('Data received:', {
-                        rpi_v: data.raspberry_pi_voltage,
-                        rpi_c: data.raspberry_pi_current,
-                        ns_angle: data.ns_actuator_angle,
-                        ew_angle: data.ew_actuator_angle,
-                        total_v: data.actuator_total_voltage
-                    });
-                    // 4. 更新今日耗能 (Wh) - 暫時顯示 0.00
-                    // 這裡預留了位置，等你後端計算好傳回 'actuator_daily_energy' 即可自動顯示
-                    const energyEl = document.getElementById(`${elementPrefix}-actuator-energy`);
-                    if (energyEl) {
-                        energyEl.textContent = data.actuator_daily_energy ? data.actuator_daily_energy.toFixed(2) : "0.00";
-                    }
-
-                    // 狀態更新
-                    if (statusEl) statusEl.innerHTML = `<span class="text-success"><i class="fas fa-check-circle"></i> 系統連線正常 (${new Date(data.timestamp).toLocaleTimeString()})</span>`;
-                }
-
-                // 載入下方表格記錄
-                loadSiteRecords(elementPrefix, systemId);
-
-            } catch (error) {
-                console.error("載入失敗:", error);
-                const statusEl = document.getElementById(`${elementPrefix}-status`);
-                if (statusEl) statusEl.innerHTML = `<span class="text-danger"><i class="fas fa-exclamation-triangle"></i> 連線失敗或無數據</span>`;
-            }
-        }
-
-        // 載入表格記錄 (包含樣式更新)
-        async function loadSiteRecords(elementPrefix, systemId) {
-            const container = document.getElementById(`${elementPrefix}-records`);
-            try {
-                const response = await fetch(`${API_BASE_URL}/power-records/?system=${systemId}&ordering=-timestamp&limit=5`);
-                const data = await response.json();
-                const records = data.results || data;
-
-                if (records.length > 0) {
-                    let html = `<table class="table table-sm table-hover text-center align-middle">
-                        <thead class="table-light">
-                            <tr><th>時間</th><th>發電(W)</th><th>推桿功率(W)</th><th>推桿角度(°)</th></tr>
-                        </thead><tbody>`;
-
-                    records.forEach(r => {
-                        html += `<tr>
-                            <td>${new Date(r.timestamp).toLocaleTimeString()}</td>
-                            <td class="fw-bold text-success">${r.power_output ? r.power_output.toFixed(2) : '-'}</td>
-                            <td>${r.actuator_power ? r.actuator_power.toFixed(2) : '-'}</td>
-                            <td>${r.actuator_angle ? r.actuator_angle.toFixed(1) : '-'}</td>
-                        </tr>`;
-                    });
-                    html += `</tbody></table>`;
-                    container.innerHTML = html;
-                }
-            } catch (e) { container.innerHTML = "載入錯誤"; }
-        }
-
-        // 刷新所有數據列表 (使用後端分頁)
-        async function refreshAllSitesData() {
-            const tbody = document.getElementById('all-sites-table-body');
-            const days = document.getElementById('date-range-selector').value;
-
-            try {
-                // 使用後端分頁 API
-                const url = `${API_BASE_URL}/power-records/?page=${currentPage}&days=${days}`;
-                const response = await fetch(url);
-                const data = await response.json();
-
-                // 更新總頁數和總筆數
-                const totalCount = data.count || 0;
-                const totalPages = Math.ceil(totalCount / 20); // 後端每頁 20 筆
-
-                document.getElementById('total-count').textContent = totalCount;
-                document.getElementById('total-pages').textContent = totalPages || 1;
-                document.getElementById('current-page').textContent = currentPage;
-
-                // 更新資料範圍資訊
-                const daysText = days === 'all' ? '全部' : `最近 ${days} 天`;
-                document.getElementById('data-count-info').textContent = `顯示 ${daysText} 的資料 (共 ${totalCount} 筆)`;
-
-                // 更新按鈕狀態
-                document.getElementById('prev-btn').disabled = !data.previous;
-                document.getElementById('next-btn').disabled = !data.next;
-
-                // 渲染資料
-                const records = data.results || [];
-                if (records.length > 0) {
-                    tbody.innerHTML = '';
-                    records.forEach(r => {
-                        const row = `<tr>
-                            <td><span class="badge bg-secondary">${r.system_name || 'System ' + r.system}</span></td>
-                            <td>${new Date(r.timestamp).toLocaleString()}</td>
-                            <td class="fw-bold text-success">${r.power_output?.toFixed(2) || '-'}</td>
-                            <td>${r.voltage?.toFixed(2) || '-'}</td>
-                            <td>${r.current?.toFixed(3) || '-'}</td>
-                            <td>${r.light_intensity?.toFixed(1) || '-'}</td>
-                        </tr>`;
-                        tbody.innerHTML += row;
-                    });
-                } else {
-                    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">無數據</td></tr>`;
-                }
-            } catch (e) {
-                console.error(e);
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">載入失敗</td></tr>`;
-            }
-        }
-
-
-
-        // 日期範圍改變時重新載入資料
-        function onDateRangeChange() {
-            currentPage = 1;
-            refreshAllSitesData();
-        }
-
-        // 分頁導航
-        function prevPage() {
-            if (currentPage > 1) {
-                currentPage--;
-                refreshAllSitesData();
-            }
-        }
-
-        function nextPage() {
-            const totalPages = parseInt(document.getElementById('total-pages').textContent);
-            if (currentPage < totalPages) {
-                currentPage++;
-                refreshAllSitesData();
-            }
-        }
-
-        function refreshAllSites() {
-            currentPage = 1;
-            refreshAllSitesData();
-        }
-
-        // 定時器設定
-        function setTabRefreshInterval(tabId, interval) {
-            if (tabAutoRefreshIntervals[tabId]) clearInterval(tabAutoRefreshIntervals[tabId]);
-
-            const statusId = `refresh-status-${tabId === 'test-system' ? 'test' : tabId}`;
-            const statusEl = document.getElementById(statusId);
-            if (statusEl) statusEl.textContent = `狀態: 每 ${interval / 1000} 秒刷新`;
-
-            tabAutoRefreshIntervals[tabId] = setInterval(() => {
-                if (tabId === 'overview') refreshOverview();
-                else if (tabId === 'test-system') refreshSiteData('test', 10);
-            }, interval);
-        }
-
-        function stopTabRefresh(tabId) {
-            if (tabAutoRefreshIntervals[tabId]) {
-                clearInterval(tabAutoRefreshIntervals[tabId]);
-                delete tabAutoRefreshIntervals[tabId];
-                const statusEl = document.getElementById(`refresh-status-${tabId === 'test-system' ? 'test' : tabId}`);
-                if (statusEl) statusEl.textContent = "狀態: 已停止";
-            }
-        }
-
-        // 匯出功能 (簡易實作)
-        function exportSiteData(sysId) { alert("功能準備中 (等待後端 API 更新)"); }
-        function exportAllData() { alert("功能準備中"); }
-
-    </script>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</script>
 </body>
-
 </html>

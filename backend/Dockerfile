@@ -11,10 +11,20 @@ RUN apt-get install gcc default-libmysqlclient-dev mariadb-client -y
 RUN apt-get install -y iputils-ping
 
 # 安裝Python套件
-RUN pip install -U pip setuptools wheel
-RUN pip install --upgrade pip
+# --trusted-host 解決企業/防毒 SSL 攔截造成的憑證錯誤
+RUN pip install -U pip setuptools wheel \
+    --trusted-host pypi.org \
+    --trusted-host pypi.python.org \
+    --trusted-host files.pythonhosted.org
+RUN pip install --upgrade pip \
+    --trusted-host pypi.org \
+    --trusted-host pypi.python.org \
+    --trusted-host files.pythonhosted.org
 COPY ./requirements.txt .
-RUN pip install -r requirements.txt --no-cache-dir
+RUN pip install -r requirements.txt --no-cache-dir \
+    --trusted-host pypi.org \
+    --trusted-host pypi.python.org \
+    --trusted-host files.pythonhosted.org
 
 # 複製專案檔案
 COPY . .

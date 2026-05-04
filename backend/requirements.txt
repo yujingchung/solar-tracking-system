@@ -6,3 +6,6 @@ drf_spectacular==0.27.2
 django-import-export==4.1.0
 django-filter==24.2
 django-cors-headers==4.7.0
+pandas==2.2.2
+requests==2.32.3
+urllib3==2.2.3

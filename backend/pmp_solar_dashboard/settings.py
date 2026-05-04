@@ -129,3 +129,16 @@ LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/login/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ── QY-Z3A IoT 採集裝置設定 ──────────────────────────────────────────────────
+# 從環境變數讀取（建議在 docker-compose.yml 的 environment 段落設定）
+Z3A_BASE_URL = os.environ.get('Z3A_BASE_URL', 'https://server.qiyunwulian.com:12341')
+Z3A_PHONE    = os.environ.get('Z3A_PHONE',    '')          # 手機號，用於 token 到期後自動重新登入
+Z3A_PASSWORD = os.environ.get('Z3A_PASSWORD', '')          # 密碼
+# 初始 token：直接貼入目前有效 token，或留空讓系統用帳密登入
+Z3A_TOKEN    = os.environ.get(
+    'Z3A_TOKEN',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
+    '.eyJQaG9uZU51bWJlciI6IjEzNTg0ODA5MzUzIiwiZXhwIjoxNzc4NjQ2MDQwLCJpc3MiOiJ3d3cuaW90Ny5jbiJ9'
+    '.UkjrCG_dUUcJzYkk9LYsSYqS8njW14sVWCJnMce2qSQ'
+)

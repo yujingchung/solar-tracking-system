@@ -23,6 +23,7 @@ services:
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - ./backend/:/usr/src/app/
+      - ./data/:/usr/src/app/data/:ro   # 固定式面板歷史數據（唯讀）
     env_file:
       - ./.env.dev
     ports:
