@@ -131,7 +131,14 @@ class Z3ADevicesView(View):
                          headers=_headers(), verify=False, timeout=15)
             if r.status_code == 401:
                 return _err("Token 已過期，請至後台更新 Z3A_TOKEN 環境變數", 401)
-            return JsonResponse(r.json(), safe=False)
+            raw = r.json()
+            # Z3A 雲端有時把 data 欄位雙重編碼成 JSON 字串，需要手動 parse
+            data = raw.get('data', raw) if isinstance(raw, dict) else raw
+            if isinstance(data, str):
+                data = json.loads(data)
+            if not isinstance(data, list):
+                data = []
+            return JsonResponse(data, safe=False)
         except Exception as exc:
             return _err(f"無法連接 Z3A 伺服器：{exc}")
 

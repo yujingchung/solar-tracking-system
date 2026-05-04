@@ -1,0 +1,312 @@
+/* ============================================================================
+   追日系統 Design System — Tokens & Type
+   Solar Tracking System monitoring dashboard
+   ========================================================================== */
+
+/* Microsoft風·Windows原生字型（不需下載 webfont，連線不上網也能用） */
+
+:root {
+  /* --- Neutrals (slate-tuned) --- */
+  --ink-1: #0F172A;
+  --ink-2: #1E293B;
+  --ink-3: #475569;
+  --ink-4: #94A3B8;
+  --ink-5: #CBD5E1;
+  --line-1: #E2E8F0;
+  --line-2: #F1F5F9;
+  --surface: #FFFFFF;
+  --canvas: #F8FAFC;
+  --canvas-deep: #0D1B2E;
+  --canvas-deep-grad: linear-gradient(135deg, #0F172A 0%, #1A2F50 100%);
+
+  /* --- System identity (4 tracking systems) --- */
+  --exp-1: #2563EB;        /* 實驗組 I (ANFIS) */
+  --exp-1-bg: #EFF6FF;
+  --exp-1-border: #BFDBFE;
+  --exp-2: #3B82F6;        /* 實驗組 II */
+  --exp-2-bg: #EFF6FF;
+  --ctrl-1: #059669;       /* 對照組 I (差分感測) */
+  --ctrl-1-bg: #ECFDF5;
+  --ctrl-1-border: #A7F3D0;
+  --ctrl-2: #10B981;       /* 對照組 II */
+  --ctrl-2-bg: #ECFDF5;
+
+  /* --- Accents --- */
+  --solar: #F59E0B;
+  --solar-deep: #B45309;
+  --solar-bg: #FEF3C7;
+  --solar-border: #FDE68A;
+  --purple: #7C3AED;       /* CSV / Fixed-panel tab */
+  --purple-bg: #F5F3FF;
+  --rose: #E11D48;         /* Z3A tab */
+  --rose-bg: #FFF1F2;
+
+  /* --- Semantic --- */
+  --success: #16A34A;
+  --success-bg: #DCFCE7;
+  --warn: #D97706;
+  --warn-bg: #FEF3C7;
+  --danger: #DC2626;
+  --danger-bg: #FEE2E2;
+  --info: #0284C7;
+  --info-bg: #E0F2FE;
+
+  /* --- Spacing (8px base) --- */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+  --s-16: 64px;
+
+  /* --- Radii --- */
+  --r-1: 4px;
+  --r-2: 8px;
+  --r-3: 12px;
+  --r-4: 16px;
+  --r-pill: 999px;
+
+  /* --- Shadows --- */
+  --shadow-1: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-2: 0 4px 12px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
+  --shadow-3: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --shadow-header: 0 1px 0 rgba(0, 0, 0, 0.05);
+  --shadow-focus: 0 0 0 3px rgba(37, 99, 235, 0.15);
+
+  /* --- Easings --- */
+  --ease: cubic-bezier(.4, 0, .2, 1);
+  --ease-out: cubic-bezier(.2, 0, .15, 1);
+  --ease-in: cubic-bezier(.4, 0, 1, 1);
+
+  /* --- Typography (Microsoft風) --- */
+  --font-sans: 'Segoe UI', 'Microsoft JhengHei', '微軟正黑體', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: Consolas, 'Courier New', ui-monospace, Menlo, monospace;
+
+  /* Type scale */
+  --t-display: clamp(2.25rem, 4vw, 2.75rem);  /* big numbers */
+  --t-h1: 1.5rem;       /* 24px */
+  --t-h2: 1.25rem;      /* 20px */
+  --t-h3: 1.125rem;     /* 18px */
+  --t-h4: 1rem;         /* 16px */
+  --t-h5: 0.875rem;     /* 14px — card header */
+  --t-body: 0.875rem;   /* 14px */
+  --t-small: 0.8125rem; /* 13px */
+  --t-xs: 0.75rem;      /* 12px */
+  --t-label: 0.6875rem; /* 11px — uppercase */
+
+  /* Layout */
+  --max-w: 1440px;
+  --header-h: 64px;
+  --nav-h: 48px;
+}
+
+/* ============================================================================
+   Reset & base
+   ========================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { -webkit-text-size-adjust: 100%; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+body {
+  background: var(--canvas);
+  font-family: var(--font-sans);
+  font-size: var(--t-body);
+  line-height: 1.55;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================================
+   Typography utilities
+   ========================================================================== */
+
+.t-display {
+  font-size: var(--t-display);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.t-h1 { font-size: var(--t-h1); font-weight: 700; line-height: 1.25; letter-spacing: -0.015em; color: var(--ink-1); }
+.t-h2 { font-size: var(--t-h2); font-weight: 700; line-height: 1.3; letter-spacing: -0.01em; color: var(--ink-1); }
+.t-h3 { font-size: var(--t-h3); font-weight: 700; line-height: 1.35; color: var(--ink-1); }
+.t-h4 { font-size: var(--t-h4); font-weight: 700; line-height: 1.4; color: var(--ink-1); }
+.t-h5 { font-size: var(--t-h5); font-weight: 700; line-height: 1.4; color: var(--ink-1); }
+
+.t-body { font-size: var(--t-body); font-weight: 400; line-height: 1.55; color: var(--ink-2); }
+.t-small { font-size: var(--t-small); color: var(--ink-3); }
+.t-xs { font-size: var(--t-xs); color: var(--ink-3); }
+
+.t-label {
+  font-size: var(--t-label);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+.t-mono { font-family: var(--font-mono); font-feature-settings: "tnum"; }
+.t-num { font-variant-numeric: tabular-nums; }
+
+/* Numeric value blocks */
+.num-display {
+  font-size: var(--t-display);
+  font-weight: 800;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.num-medium { font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.num-small { font-size: 0.95rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.unit { font-size: 0.75rem; font-weight: 500; color: var(--ink-4); margin-left: 2px; }
+
+/* ============================================================================
+   Components
+   ========================================================================== */
+
+.ds-card {
+  background: var(--surface);
+  border: 1px solid var(--line-1);
+  border-radius: var(--r-3);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+  transition: box-shadow 200ms var(--ease), border-color 200ms var(--ease);
+}
+.ds-card.is-hover:hover { box-shadow: var(--shadow-2); border-color: var(--ink-5); }
+.ds-card-hdr {
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--line-2);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s-2); flex-wrap: wrap;
+}
+.ds-card-hdr h6 { font-size: var(--t-h5); font-weight: 700; color: var(--ink-1); display: flex; align-items: center; gap: var(--s-2); }
+.ds-card-body { padding: var(--s-4); }
+
+.ds-card-accent { position: relative; }
+.ds-card-accent::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+  background: var(--accent, var(--exp-1));
+}
+
+/* Buttons */
+.ds-btn {
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  padding: 8px 14px;
+  font-family: inherit; font-size: var(--t-small); font-weight: 600;
+  border-radius: var(--r-2);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 200ms var(--ease), color 200ms var(--ease), border-color 200ms var(--ease), box-shadow 200ms var(--ease);
+  white-space: nowrap;
+}
+.ds-btn:focus-visible { outline: 2px solid var(--exp-1); outline-offset: 2px; }
+.ds-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.ds-btn-primary { background: var(--exp-1); color: #fff; border-color: var(--exp-1); }
+.ds-btn-primary:hover { background: #1D4ED8; border-color: #1D4ED8; }
+.ds-btn-primary:active { background: #1E40AF; }
+
+.ds-btn-secondary { background: var(--surface); color: var(--ink-2); border-color: var(--line-1); }
+.ds-btn-secondary:hover { background: var(--canvas); border-color: var(--ink-5); }
+
+.ds-btn-ghost { background: transparent; color: var(--ink-3); }
+.ds-btn-ghost:hover { background: var(--line-2); color: var(--ink-1); }
+
+.ds-btn-danger { background: var(--danger); color: #fff; border-color: var(--danger); }
+.ds-btn-danger:hover { background: #B91C1C; }
+
+.ds-btn-sm { padding: 6px 10px; font-size: var(--t-xs); }
+.ds-btn-lg { padding: 10px 18px; font-size: var(--t-body); }
+
+/* Badges */
+.ds-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 9px;
+  font-size: var(--t-label); font-weight: 700;
+  border-radius: var(--r-pill);
+  border: 1px solid transparent;
+}
+.ds-badge-exp { background: var(--exp-1-bg); color: var(--exp-1); border-color: var(--exp-1-border); }
+.ds-badge-ctrl { background: var(--ctrl-1-bg); color: var(--ctrl-1); border-color: var(--ctrl-1-border); }
+.ds-badge-solar { background: var(--solar-bg); color: var(--solar-deep); border-color: var(--solar-border); }
+.ds-badge-neutral { background: var(--line-2); color: var(--ink-3); border-color: var(--line-1); }
+
+/* Status pill (連線中/離線) */
+.ds-status {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px;
+  font-size: var(--t-xs); font-weight: 700;
+  border-radius: var(--r-pill);
+}
+.ds-status .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.ds-status-on { background: var(--success-bg); color: #15803D; }
+.ds-status-on .dot { background: var(--success); animation: ds-pulse 2s infinite; }
+.ds-status-off { background: var(--line-2); color: var(--ink-4); }
+.ds-status-off .dot { background: var(--ink-4); }
+
+@keyframes ds-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(34,197,94,.5); }
+  70% { box-shadow: 0 0 0 6px rgba(34,197,94,0); }
+  100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+}
+
+/* KPI tile */
+.ds-tile {
+  background: var(--canvas);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-2);
+  padding: var(--s-3) var(--s-3);
+  text-align: center;
+}
+.ds-tile-label { font-size: var(--t-label); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 4px; }
+.ds-tile-value { font-size: 1.2rem; font-weight: 700; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+.ds-tile-value.sm { font-size: 0.95rem; }
+
+/* Form controls */
+.ds-input, .ds-select {
+  width: 100%;
+  padding: 8px 12px;
+  font-family: inherit; font-size: var(--t-small);
+  background: var(--surface);
+  border: 1px solid var(--line-1);
+  border-radius: var(--r-2);
+  color: var(--ink-1);
+  transition: border-color 150ms var(--ease), box-shadow 150ms var(--ease);
+}
+.ds-input:hover, .ds-select:hover { border-color: var(--ink-5); }
+.ds-input:focus, .ds-select:focus { outline: none; border-color: var(--exp-1); box-shadow: var(--shadow-focus); }
+
+/* Data table */
+.ds-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: var(--t-small); }
+.ds-table thead th {
+  background: var(--canvas);
+  padding: 10px 14px;
+  font-weight: 700; font-size: var(--t-label);
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ink-3);
+  border-bottom: 1px solid var(--line-1);
+  text-align: left;
+  position: sticky; top: 0;
+}
+.ds-table tbody td { padding: 10px 14px; border-bottom: 1px solid var(--line-2); vertical-align: middle; }
+.ds-table tbody tr:hover td { background: var(--canvas); }
+.ds-table tbody tr:last-child td { border-bottom: none; }
+
+/* Section header */
+.ds-section-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: var(--s-4); gap: var(--s-3); flex-wrap: wrap;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--ink-5); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-4); }
