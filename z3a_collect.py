@@ -141,7 +141,11 @@ def fetch_device_types() -> dict:
         r = requests.get(f"{BASE_URL}/bind/query", headers=_headers(),
                          verify=False, timeout=15)
         r.raise_for_status()
-        data = r.json().get("data") or []
+        raw = r.json()
+        data = raw.get("data") or []
+        # Z3A 雲端有時把 data 欄位雙重編碼成 JSON 字串，需要手動 parse
+        if isinstance(data, str):
+            data = json.loads(data)
         _DEVICE_TYPE_CACHE = {d["DeviceId"]: str(d.get("DeviceType", "2")) for d in data}
         log.info("已取得 %d 個裝置的 DeviceType", len(_DEVICE_TYPE_CACHE))
     except Exception as e:
@@ -306,6 +310,134 @@ def build_panel_df(device_id: str, device_type: str,
 
 
 # ════════════════════════════════════════════════════════════════════════════════
+# Pipeline 整合（--pipeline 模式）
+# ════════════════════════════════════════════════════════════════════════════════
+
+PIPELINE_DIR = Path(__file__).parent / "fixed_data_process_visualization"
+
+
+def _panel_id_to_filename(panel_id: str) -> str:
+    """
+    將 panel_id 轉換為 pipeline 步驟 4 能識別的檔名格式。
+      Panel_20_180_A → 傾角20度方位角180度.csv
+      Panel_20_180_B → 傾角20度方位角180度1.csv
+      Tracking_2_25_上 → 追日系統2 傾角25上.csv
+    步驟 4 邏輯：檔名含「1」→ _B 面板；不含「1」→ _A 面板。
+    """
+    if panel_id.startswith("Panel_"):
+        parts = panel_id.split("_")          # ['Panel', '20', '180', 'A']
+        tilt, azimuth, ab = parts[1], parts[2], parts[3]
+        suffix = "1" if ab == "B" else ""
+        return f"傾角{tilt}度方位角{azimuth}度{suffix}.csv"
+    elif panel_id.startswith("Tracking_"):
+        parts = panel_id.split("_")          # ['Tracking', '2', '25', '上']
+        system, tilt, position = parts[1], parts[2], parts[3]
+        return f"追日系統{system} 傾角{tilt}{position}.csv"
+    return f"{panel_id}.csv"
+
+
+def _load_pipeline_module(filename: str, module_name: str):
+    """載入 fixed_data_process_visualization/ 下（檔名可能含空格的）.py 檔。"""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        module_name, str(PIPELINE_DIR / filename)
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _save_raw_csvs(all_panel_raw: dict, output_dir: Path):
+    """
+    將所有面板的原始資料存成 pipeline 步驟 2 能讀的 CSV 格式。
+    每台裝置一個檔案，欄位：日期时间 / 直流电压V / 直流电电流mA / 直流电电流A
+    all_panel_raw: {device_id: [(dt, voltage_V, current_mA, current_A), ...]}
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    for device_id, meta in PANEL_MAP.items():
+        panel_id = meta[0]
+        rows = all_panel_raw.get(device_id, [])
+
+        if not rows:
+            log.warning("  %-25s → 無資料，跳過", panel_id)
+            continue
+
+        df = pd.DataFrame(rows, columns=["_dt", "直流电压V", "直流电电流mA", "直流电电流A"])
+        df = df.drop_duplicates("_dt").sort_values("_dt")
+        df.insert(0, "日期时间", df["_dt"].dt.strftime("%Y-%m-%d %H:%M:%S"))
+        df = df.drop(columns=["_dt"])
+
+        filename = _panel_id_to_filename(panel_id)
+        df.to_csv(output_dir / filename, index=False, encoding="utf-8-sig")
+        log.info("  %-25s → %s（%d 筆）", panel_id, filename, len(df))
+
+
+def _run_step2(folder: Path):
+    """步驟 2：計算功率（power calculation2.py），更新 folder 內所有 CSV。"""
+    log.info("步驟 2：計算功率（power calculation2.py）…")
+    mod = _load_pipeline_module("power calculation2.py", "power_calculation2")
+    mod.batch_process_folder(str(folder))
+    log.info("步驟 2 完成")
+
+
+def _run_step4(folder: Path) -> Path:
+    """步驟 4：pvlib 太陽角度計算，匯出 complete_solar_data.csv。"""
+    log.info("步驟 4：太陽角度計算（data preprocessing4.py）…")
+    mod = _load_pipeline_module("data preprocessing4.py", "data_preprocessing4")
+
+    db_path = str(folder / "_pipeline_temp.db")
+    proc = mod.SolarAngleDataProcessor(db_path=db_path)
+    proc.import_csv_files(str(folder), clear_existing=True)
+    proc.process_data(overwrite=True, filter_azimuth=False)
+    proc.remove_duplicates()
+
+    complete_csv = folder / "complete_solar_data.csv"
+    proc.export_complete_data(str(complete_csv))
+    proc.close()
+
+    Path(db_path).unlink(missing_ok=True)
+    log.info("步驟 4 完成 → %s", complete_csv)
+    return complete_csv
+
+
+def _run_step5_combine(new_csv: Path, dry_run: bool = False):
+    """步驟 5：將 pipeline 輸出合併進主 CSV（去重 + 排序 + 備份）。"""
+    log.info("步驟 5：合併進主資料集…")
+
+    new_df = pd.read_csv(new_csv, dtype=str, low_memory=False)
+    log.info("  新資料（pipeline 輸出）：%d 筆", len(new_df))
+
+    if dry_run:
+        log.info("[DRY RUN] 不寫入 CSV，印出前 5 筆：")
+        print(new_df.head().to_string())
+        return
+
+    if CSV_PATH.exists():
+        existing = pd.read_csv(CSV_PATH, dtype=str, low_memory=False)
+        log.info("  現有資料：%d 筆", len(existing))
+    else:
+        existing = pd.DataFrame()
+
+    combined = pd.concat([existing, new_df], ignore_index=True)
+    before = len(combined)
+    combined = combined.drop_duplicates(subset=["timestamp", "panel_id"], keep="last")
+    log.info("  去重後：%d 筆（移除 %d 筆）", len(combined), before - len(combined))
+
+    combined["_ts_sort"] = pd.to_datetime(combined["timestamp"], format="mixed", errors="coerce")
+    combined = combined.sort_values(["_ts_sort", "panel_id"]).drop(columns=["_ts_sort"])
+
+    if CSV_PATH.exists():
+        import shutil
+        backup = CSV_PATH.with_suffix(f".bak.{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+        shutil.copy2(CSV_PATH, backup)
+        log.info("  備份至：%s", backup)
+
+    combined.to_csv(CSV_PATH, index=False, encoding="utf-8-sig")
+    log.info("✓ 已寫入 %s（共 %d 筆）", CSV_PATH, len(combined))
+
+
+# ════════════════════════════════════════════════════════════════════════════════
 # 主流程
 # ════════════════════════════════════════════════════════════════════════════════
 
@@ -319,6 +451,8 @@ def main():
                         help="結束日期 YYYY-MM-DD（預設今天）")
     parser.add_argument("--dry-run", action="store_true",
                         help="只印出會做什麼，不寫入 CSV")
+    parser.add_argument("--pipeline", action="store_true",
+                        help="輸出原始 CSV → 自動執行前處理 pipeline（步驟 2+4+5）再合併")
     args = parser.parse_args()
 
     # 日期範圍
@@ -344,13 +478,81 @@ def main():
     # 取得 DeviceType 對照
     device_types = fetch_device_types()
 
-    # 逐一抓取所有裝置
+    # 把日期範圍拆成 ≤7 天的區段，確保 API 回傳 10 分鐘解析度
+    CHUNK_DAYS = 7
+    start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+    end_dt   = datetime.strptime(end_date,   "%Y-%m-%d")
+    chunks = []
+    cur = start_dt
+    while cur <= end_dt:
+        chunk_end = min(cur + timedelta(days=CHUNK_DAYS - 1), end_dt)
+        chunks.append((cur.strftime("%Y-%m-%d"), chunk_end.strftime("%Y-%m-%d")))
+        cur = chunk_end + timedelta(days=1)
+    log.info("日期範圍拆成 %d 個區段（每段 ≤%d 天）", len(chunks), CHUNK_DAYS)
+
+    # ── Pipeline 模式 ──────────────────────────────────────────────────────────
+    if args.pipeline:
+        all_panel_raw: dict = {did: [] for did in PANEL_MAP}
+
+        for chunk_start, chunk_end in chunks:
+            log.info("── 區段 %s → %s（抓取原始資料）──", chunk_start, chunk_end)
+            for device_id, meta in PANEL_MAP.items():
+                dtype = device_types.get(device_id, "2")
+                panel_id = meta[0]
+
+                v_series = fetch_series(device_id, dtype, 1, chunk_start, chunk_end)
+                i_series = fetch_series(device_id, dtype, 5, chunk_start, chunk_end)
+
+                # 電流原始值對照表（時間 → raw dca_value）
+                i_raw_dict: dict = {}
+                for p in i_series:
+                    dt = parse_z3a_time(p["time"])
+                    if dt and p["value"] is not None:
+                        i_raw_dict[dt] = float(p["value"])
+
+                # 電壓對照表（時間 → V）
+                v_dict: dict = {}
+                for p in v_series:
+                    dt = parse_z3a_time(p["time"])
+                    if dt and p["value"] is not None:
+                        v_dict[dt] = float(p["value"]) / VOLTAGE_DIV
+
+                all_ts = sorted(set(v_dict) | set(i_raw_dict))
+                for dt in all_ts:
+                    raw_i = i_raw_dict.get(dt, 0.0)
+                    all_panel_raw[device_id].append((
+                        dt,
+                        v_dict.get(dt, 0.0),    # 電壓 V
+                        raw_i / 1_000_000,       # 電流 mA
+                        raw_i / CURRENT_DIV,     # 電流 A
+                    ))
+                log.info("    %-20s → %-25s（%d 筆）",
+                         device_id, panel_id, len(all_ts))
+
+        log.info("═" * 60)
+        out_dir = (Path(__file__).parent / "z3a_pipeline_output"
+                   / f"{start_date}_{end_date}")
+        log.info("儲存原始 CSV → %s", out_dir)
+        _save_raw_csvs(all_panel_raw, out_dir)
+
+        _run_step2(out_dir)
+        complete_csv = _run_step4(out_dir)
+        _run_step5_combine(complete_csv, dry_run=args.dry_run)
+
+        log.info("═" * 60)
+        log.info("Pipeline 完成！日期範圍：%s → %s", start_date, end_date)
+        return
+
+    # ── 一般模式（直接合併，不跑 pipeline）──────────────────────────────────
+    # 逐段、逐裝置抓取
     all_new_dfs = []
-    for device_id, meta in PANEL_MAP.items():
-        dtype = device_types.get(device_id, "2")
-        df = build_panel_df(device_id, dtype, start_date, end_date)
-        if df is not None and not df.empty:
-            all_new_dfs.append(df)
+    for chunk_start, chunk_end in chunks:
+        log.info("── 區段 %s → %s ──", chunk_start, chunk_end)
+        for device_id, meta in PANEL_MAP.items():
+            dtype = device_types.get(device_id, "2")
+            df = build_panel_df(device_id, dtype, chunk_start, chunk_end)
+            if df is not None and not df.empty:
+                all_new_dfs.append(df)
 
     if not all_new_dfs:
         log.error("沒有抓到任何資料，請確認 Token 是否有效。")
