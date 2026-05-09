@@ -1194,31 +1194,4 @@ function z3aRenderSummary(selDevices,channel){
     tbody.innerHTML=selDevices.map((dev,i)=>{
         const color=Z3A_COLORS[i%Z3A_COLORS.length];
         let vals=[];
-        if(channel==='voltage')vals=(z3aVoltData[dev.DeviceId]||[]).map(p=>p.value).filter(v=>v!=null);
-        else if(channel==='current')vals=(z3aCurrentData[dev.DeviceId]||[]).map(p=>p.value).filter(v=>v!=null);
-        else{
-            const vl=z3aVoltData[dev.DeviceId]||[],cl=z3aCurrentData[dev.DeviceId]||[];
-            const vm={},cm={};
-            vl.forEach(p=>{vm[p.time]=p.value;});cl.forEach(p=>{cm[p.time]=p.value;});
-            vals=Object.keys(vm).filter(t=>cm[t]!=null).map(t=>vm[t]*(cm[t]/1000)).filter(v=>v!=null);
-        }
-        if(!vals.length)return`<tr><td style="color:${color};font-weight:600">${dev.DeviceId}</td><td colspan="4" class="text-muted">無資料</td></tr>`;
-        const mn=Math.min(...vals),mx=Math.max(...vals),avg=vals.reduce((a,b)=>a+b,0)/vals.length;
-        const u=channel==='voltage'?'V':channel==='current'?'mA':'W';
-        return`<tr><td style="color:${color};font-weight:600;font-size:.8rem">${dev.DeviceId}</td>
-<td>${mn.toFixed(3)} ${u}</td><td>${mx.toFixed(3)} ${u}</td><td>${avg.toFixed(3)} ${u}</td><td>${vals.length}</td></tr>`;
-    }).join('');
-}
-
-/* 初始化（進入分頁時呼叫） */
-async function z3aInit(){
-    if(z3aInitDone)return;
-    z3aInitDone=true;
-    z3aInitDates();
-    await z3aCheckStatus();
-    await z3aLoadDevices();
-}
-
-</script>
-</body>
-</html>
+        if(channel==='voltage')vals=(z3aVoltData[dev.DeviceId]||[]).map(

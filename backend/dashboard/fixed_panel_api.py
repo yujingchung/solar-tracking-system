@@ -316,15 +316,4 @@ class FixedPanelRawCSVView(View):
 # ── 診斷端點：看後端載入狀態與錯誤 ──────────────────────────────────────────
 class FixedPanelStatusView(View):
     def get(self, request):
-        import os
-        path = _get_data_path()
-        file_exists = os.path.exists(path)
-        file_size = os.path.getsize(path) if file_exists else 0
-        return JsonResponse({
-            "df_loaded": _df is not None,
-            "df_rows": int(len(_df)) if _df is not None else 0,
-            "load_error": _load_error,
-            "csv_path": path,
-            "file_exists": file_exists,
-            "file_size_mb": round(file_size / 1024 / 1024, 1),
-        })
+        import o
