@@ -94,6 +94,7 @@ def batch_process_folder(folder_path):
         print(f"批次處理時發生錯誤: {str(e)}")
 
 
-# 使用範例
-folder_path = r'D:\宇靖\先鋒\太陽能板採集數據\20260401_0406\已重命名'  # 替換成您的資料夾路徑
-batch_process_folder(folder_path)
+if __name__ == "__main__":
+    # 使用範例
+    folder_path = r'D:\宇靖\先鋒\太陽能板採集數據\20260401_0406\已重命名'  # 替換成您的資料夾路徑
+    batch_process_folder(folder_path)

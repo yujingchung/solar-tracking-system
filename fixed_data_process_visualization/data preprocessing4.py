@@ -435,95 +435,102 @@ class SolarAngleDataProcessor:
 
     def import_illumination_data(self, path, clear_existing=False):
         """
-        從CSV文件或目錄導入照度數據並整合到數據庫
+        從 solar.radiation-v2_YYYYMMDD.csv 導入照度數據並整合到數據庫。
+
+        CSV 格式（從 MongoDB Atlas solar.radiation-v2 匯出）：
+            _id, site, datetime (UTC ISO8601), data.max, data.min, data.avg, samples_count
+        照度值使用 data.avg 欄，時間戳自動從 UTC 轉換為台灣時間（Asia/Taipei +8）。
 
         參數:
-        - path: 包含照度數據的CSV文件路徑或目錄路徑
-        - clear_existing: 是否清空現有照度數據
+        - path: 照度 CSV 檔案路徑，或包含多個 CSV 的目錄路徑
+        - clear_existing: 是否清空現有照度數據（預設 False）
         """
+        import pytz
+        tz_taipei = pytz.timezone('Asia/Taipei')
+
         try:
-            # 檢查是否為目錄
+            # 決定要處理的檔案清單
             if os.path.isdir(path):
-                # 獲取目錄中所有CSV文件
-                csv_files = glob.glob(os.path.join(path, "*.csv"))
+                csv_files = sorted(glob.glob(os.path.join(path, "solar.radiation*.csv")))
                 if not csv_files:
-                    print(f"在 {path} 中沒有找到CSV文件")
+                    # 找不到照度檔，嘗試所有 CSV
+                    csv_files = sorted(glob.glob(os.path.join(path, "*.csv")))
+                if not csv_files:
+                    print(f"在 {path} 中沒有找到照度 CSV 文件")
                     return False
-                print(f"在目錄 {path} 中找到 {len(csv_files)} 個CSV文件")
+                print(f"找到 {len(csv_files)} 個照度 CSV 文件")
             else:
-                # 單個文件
                 if not os.path.exists(path):
                     print(f"文件 {path} 不存在")
                     return False
                 csv_files = [path]
-                print(f"將處理單個文件: {path}")
+                print(f"將處理照度文件: {os.path.basename(path)}")
 
-            # 在processed_solar_data表中添加照度列（如果不存在）
+            # 確保 processed_solar_data 和 averaged_solar_data 有 illumination 欄位
             cursor = self.conn.cursor()
-            cursor.execute("PRAGMA table_info(processed_solar_data)")
-            columns = [info[1] for info in cursor.fetchall()]
-
-            if 'illumination' not in columns:
-                cursor.execute("ALTER TABLE processed_solar_data ADD COLUMN illumination REAL")
-                print("已添加照度列到processed_solar_data表")
-
-            # 同樣在averaged_solar_data表中添加照度列
-            cursor.execute("PRAGMA table_info(averaged_solar_data)")
-            columns = [info[1] for info in cursor.fetchall()]
-
-            if 'illumination' not in columns:
-                cursor.execute("ALTER TABLE averaged_solar_data ADD COLUMN illumination REAL")
-                print("已添加照度列到averaged_solar_data表")
-
+            for table in ('processed_solar_data', 'averaged_solar_data'):
+                cursor.execute(f"PRAGMA table_info({table})")
+                cols = [info[1] for info in cursor.fetchall()]
+                if 'illumination' not in cols:
+                    cursor.execute(f"ALTER TABLE {table} ADD COLUMN illumination REAL")
+                    print(f"已添加 illumination 欄位到 {table} 表")
             self.conn.commit()
 
-            # 處理每個CSV文件
             total_count = 0
+
             for csv_file in csv_files:
                 filename = os.path.basename(csv_file)
-                print(f"處理照度文件: {filename}")
+                print(f"\n處理照度文件: {filename}")
 
-                # 讀取照度數據CSV文件
                 df = pd.read_csv(csv_file, encoding='utf-8')
-                print(f"  讀取了 {len(df)} 行照度數據")
+                print(f"  讀取 {len(df)} 行")
 
-                # 假設CSV格式如下：第2列(B欄)是站點，第3列(C欄)是時間戳，第6列(F欄)是照度
-                # 僅保留站點為 "PMP-TPE-TEMPLE" 的數據
-                df = df[df.iloc[:, 1] == "PMP-TPE-TEMPLE"]
-                print(f"  篩選後剩餘 {len(df)} 行 PMP-TPE-TEMPLE 站點的照度數據")
-
-                if len(df) == 0:
-                    print("  沒有符合條件的照度數據")
+                # ── 驗證欄位 ─────────────────────────────────────────
+                required = {'datetime', 'data.avg'}
+                if not required.issubset(df.columns):
+                    print(f"  ⚠ 欄位不符（需要 {required}，實際 {set(df.columns)}），跳過")
                     continue
 
-                # 提取時間戳和照度值
-                timestamps = df.iloc[:, 2].values  # C欄，時間戳
-                illumination = df.iloc[:, 5].values  # F欄，照度
+                # ── 站點篩選（若有多站點只取本案場） ──────────────────
+                if 'site' in df.columns:
+                    sites = df['site'].unique().tolist()
+                    # 優先取 PMP-TPE-TEMPLE；若不存在則取第一個站點
+                    target_site = 'PMP-TPE-TEMPLE' if 'PMP-TPE-TEMPLE' in sites else sites[0]
+                    df = df[df['site'] == target_site].copy()
+                    print(f"  站點篩選 [{target_site}]：剩餘 {len(df)} 行")
 
-                # 更新數據庫中的照度值
+                if df.empty:
+                    print("  沒有符合條件的照度數據，跳過")
+                    continue
+
+                # ── 時間解析：MongoDB 時間戳已是台灣本地時間（非 UTC）──
+                # 直接取前 19 字（YYYY-MM-DDTHH:MM:SS），不做時區轉換
+                df['timestamp_tw'] = (
+                    pd.to_datetime(df['datetime'].str[:19])
+                    .dt.strftime('%Y-%m-%d %H:%M:%S')
+                )
+
+                # ── 批次更新 processed_solar_data ─────────────────────
+                ill_map = dict(zip(df['timestamp_tw'], df['data.avg']))
                 file_count = 0
-                for i in range(len(timestamps)):
-                    # 將時間戳轉換為標準格式 (如果需要)
-                    timestamp = pd.to_datetime(timestamps[i]).strftime('%Y-%m-%d %H:%M:%S')
-
-                    # 更新processed_solar_data表中的照度
-                    cursor.execute("""
-                    UPDATE processed_solar_data 
-                    SET illumination = ? 
-                    WHERE timestamp = ?
-                    """, (float(illumination[i]), timestamp))
-
-                    updated = cursor.rowcount
-                    file_count += updated
+                for ts, val in ill_map.items():
+                    try:
+                        cursor.execute(
+                            "UPDATE processed_solar_data SET illumination = ? WHERE timestamp = ?",
+                            (float(val), ts)
+                        )
+                        file_count += cursor.rowcount
+                    except (ValueError, TypeError):
+                        pass
 
                 self.conn.commit()
-                print(f"  已更新 {file_count} 條記錄的照度值")
+                print(f"  更新 {file_count} 條記錄的照度值")
                 total_count += file_count
 
             # 更新15分鐘平均數據的照度
             self.update_averaged_illumination()
 
-            print(f"總共更新了 {total_count} 條記錄的照度值")
+            print(f"\n照度導入完成，共更新 {total_count} 條記錄")
             return True
 
         except Exception as e:
@@ -755,8 +762,10 @@ if __name__ == "__main__":
     # 移除重複記錄
     processor.remove_duplicates()
 
-    # 導入照度資料（可以是單個文件或整個目錄）
-    processor.import_illumination_data(r'D:\宇靖\先鋒\太陽能板採集數據\照度\solar.radiation-v2_20260407.csv')
+    # 導入照度資料
+    # 格式：solar.radiation-v2_YYYYMMDD.csv（從 MongoDB Atlas 手動匯出）
+    # 可傳入單一 CSV 路徑，或包含多個 CSV 的目錄路徑
+    processor.import_illumination_data(r'D:\宇靖\先鋒\太陽能板採集數據\照度\solar.radiation-v2_20260505.csv')
 
     # 計算15分鐘平均值
     #processor.calculate_15min_averages(overwrite=True)

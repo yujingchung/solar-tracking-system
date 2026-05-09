@@ -1,180 +1,160 @@
-# CLAUDE.md — 太陽能追日系統專案說明
+# CLAUDE.md — Solar Tracking System Project Guide
 
-> 給 AI 助理（Claude）的專案導覽。每次開新對話前請先讀這份文件。
+> Read this file at the start of every new conversation.
 
----
+## 1. Project Overview
 
-## 1. 專案定位
+**Research**: ANFIS-based intelligent solar tracking system  
+**Site**: Xianfeng (Jintugong Temple) solar experiment field  
+**Researcher**: Chung Yu-Ching | **Thesis**: `碩士論文計劃書_鐘宇靖_final.docx`
 
-**研究題目**：基於 ANFIS 演算法的智慧太陽能追日系統  
-**場域**：先鋒（金土地公廟）太陽能實驗場  
-**研究者**：鐘宇靖  
-**論文**：`碩士論文計劃書_鐘宇靖_final.docx`
+**Experiment design:**
+- **Control group**: Traditional LDR differential tracking — `raspberry-pi/src/controllers/traditional_controller.py`
+- **Experiment group**: ANFIS intelligent tracking — `raspberry-pi/src/controllers/anfis_controller.py`
+- **Data source**: 28 fixed-angle panels (tilt 10°/15°/20°/30° × azimuth 160°/180°/200°) + 4 tracking panels
 
-實驗設計：
-- **對照組**：傳統光感測器差值追日（`raspberry-pi/src/controllers/traditional_controller.py`）
-- **實驗組**：ANFIS 智慧追日（`raspberry-pi/src/controllers/anfis_controller.py`）
-- **資料源**：28 片固定角度面板（傾角 10°/15°/20°/30° × 方位角 160°/180°/200°）＋ 4 片追日面板
-
----
-
-## 2. 資料夾結構
+## 2. Directory Structure
 
 ```
 solar-tracking-dashboard/
-├── backend/                        # Django 後端（Docker 容器內）
+├── backend/
 │   ├── dashboard/
-│   │   ├── models.py               # SystemGroup, PowerRecord
-│   │   ├── views.py                # REST API viewsets
-│   │   ├── fixed_panel_api.py      # 固定面板歷史 CSV 查詢 API
-│   │   ├── z3a_api.py              # Z3A IoT 雲端 API 代理
-│   │   └── urls.py                 # 所有路由
-│   ├── static/dashboard.html       # 單頁前端儀表板（全部邏輯在這一個檔案）
-│   ├── pmp_solar_dashboard/
-│   │   └── settings.py             # Django 設定（含 Z3A 環境變數）
+│   │   ├── models.py            # SystemGroup, PowerRecord
+│   │   ├── views.py             # REST API viewsets
+│   │   ├── fixed_panel_api.py   # Fixed panel CSV query API
+│   │   ├── z3a_api.py           # Z3A IoT cloud API proxy
+│   │   └── urls.py
+│   ├── static/dashboard.html    # Single-file frontend (~1500 lines, all HTML/CSS/JS)
+│   ├── pmp_solar_dashboard/settings.py
 │   ├── requirements.txt
 │   └── Dockerfile
 ├── data/
-│   └── combined_solar_data_20250301_20260406_processed.csv  # 主要資料檔（49 MB）
+│   └── combined_solar_data_20250301_20260406_processed.csv  # Main dataset (49 MB)
 ├── algorithms/
-│   ├── solar_anfis_model_v2.py     # ANFIS 訓練主程式
-│   ├── coordinate_conversion/      # (β,φ) ⇄ (γ,ζ) 座標轉換工具
-│   │   ├── tiptilt_to_azalt.py     # (γ,ζ) → (β,φ) 轉換 + 生成對照表
-│   │   ├── azalt_to_tiptilt.py     # (β,φ) → (γ,ζ) 反向轉換
-│   │   └── visualization.py        # 雙座標系對照圖（需先產生 CSV）
-│   └── flowcharts/                 # 實驗組/對照組流程圖 PDF
-├── fixed_data_process_visualization/  # 固定面板資料處理六步管線
-│   ├── solar_data_pipeline.py      # Tkinter GUI 入口
-│   ├── convert name1.py            # ① 重命名
-│   ├── power calculation2.py       # ② 計算 P=V×I
-│   ├── power summary3.py           # ③ 日發電量匯總
-│   ├── data preprocessing4.py      # ④ 加太陽角度（pvlib）
-│   ├── combine data 5.py           # ⑤ 多時段合併
-│   ├── fixed_panel_data_visualization.py  # ⑥ 互動式圖表
+│   ├── solar_anfis_model_v2.py  # ANFIS training main script
+│   ├── train_pipeline.py        # One-click training launcher (manages datasets/ & runs/)
+│   ├── datasets/                # Preprocessed datasets (dsXX_YYYYMMDD_desc/)
+│   ├── runs/                    # Training run outputs (runXX_dsXX_desc/)
+│   ├── datapreprocessor/
+│   │   └── data preprocessor.py  # SimpleSolarPreprocessor class
+│   ├── coordinate_conversion/   # (β,φ) ⇄ (γ,ζ) coordinate tools
+│   │   ├── tiptilt_to_azalt.py
+│   │   ├── azalt_to_tiptilt.py
+│   │   └── visualization.py
+│   └── flowcharts/              # Experiment/control flowchart PDFs
+├── fixed_data_process_visualization/  # 6-step fixed panel data pipeline
+│   ├── solar_data_pipeline.py   # Tkinter GUI entry point
+│   ├── convert name1.py         # ① Rename
+│   ├── power calculation2.py    # ② Compute P=V×I
+│   ├── power summary3.py        # ③ Daily energy summary
+│   ├── data preprocessing4.py  # ④ Add solar angles (pvlib)
+│   ├── combine data 5.py        # ⑤ Merge time periods
+│   ├── fixed_panel_data_visualization.py  # ⑥ Interactive charts
 │   └── 使用手冊.md
 ├── raspberry-pi/
-│   ├── config/                     # 樹莓派設定檔
-│   │   ├── system_config.json      # 控制器完整配置（硬體、演算法、位置）
-│   │   ├── config.json             # 資料採集器預設設定
-│   │   ├── config_mountain_control.json    # 山上對照組（system_id=6）
-│   │   ├── config_mountain_experiment.json # 山上實驗組（system_id=7）
-│   │   └── config_simulation.json          # 模擬測試（system_id=5）
+│   ├── config/
+│   │   ├── system_config.json               # Full controller config
+│   │   ├── config.json                      # Data collector defaults
+│   │   ├── config_mountain_control.json     # Mountain control group (system_id=6)
+│   │   ├── config_mountain_experiment.json  # Mountain experiment group (system_id=7)
+│   │   └── config_simulation.json           # Simulation test (system_id=5)
 │   └── src/
-│       ├── main_controller.py      # 控制器進入點（--mode both/anfis/traditional）
-│       ├── controllers/            # ANFIS / 傳統兩組控制邏輯
-│       ├── raspberry_pi_data_collector.py  # 上傳資料到 Django API
-│       ├── test_actuator.py        # 雙軸推桿手動控制測試（需 GPIO + INA3221）
-│       └── test_uploader.py        # 推桿控制 + API 上傳整合測試
-├── tailscale-config/
-│   └── serve.json                  # Tailscale Funnel 設定（443 → backend:8000）
+│       ├── main_controller.py               # Entry point (--mode both/anfis/traditional)
+│       ├── controllers/
+│       ├── raspberry_pi_data_collector.py   # Upload data to Django API
+│       ├── test_actuator.py                 # Dual-axis actuator manual test
+│       └── test_uploader.py                 # Actuator + API upload integration test
+├── tailscale-config/serve.json  # Tailscale Funnel config (443 → backend:8000)
 ├── scripts/
-│   ├── test_api.py                 # Django REST API 端點測試（localhost:8000）
-│   └── start_solar_tracking.bat    # Windows 選單式啟動器
-├── z3a_collect.py                  # Z3A 歷史資料抓取＋合併 CSV 腳本（獨立執行）
-├── check_z3a.py                    # Z3A API 除錯腳本（測試所有裝置）
-├── solar_angle_data.db             # SQLite，由 data preprocessing4.py 產生
-├── docker-compose-dev.yml          # Docker 服務定義
-├── .env.dev                        # 環境變數（含密碼/Token，不進 git）
+│   ├── test_api.py              # Django REST API endpoint tests
+│   └── start_solar_tracking.bat # Windows menu-based launcher
+├── z3a_collect.py               # Z3A historical data fetch + CSV merge
+├── check_z3a.py                 # Z3A API debug script
+├── solar_angle_data.db          # SQLite (generated by data preprocessing4.py)
+├── docker-compose-dev.yml
+├── .env.dev                     # Secrets/tokens — NOT in git
 ├── README.md
-├── ARCHITECTURE.md                 # 詳細架構說明（含資料流圖）
-└── 碩士論文計劃書_鐘宇靖_final.docx
+└── ARCHITECTURE.md
 ```
 
----
+## 3. Docker
 
-## 3. Docker 服務
-
-**啟動指令**（必須在專案根目錄執行，且 compose 檔案名稱不是預設值）：
+**Run from project root** (non-default compose filename):
 ```bash
-cd D:\宇靖\solar-tracking-dashboard
 docker-compose -f docker-compose-dev.yml up -d
 docker-compose -f docker-compose-dev.yml down
-docker-compose -f docker-compose-dev.yml build   # 重建 backend image
+docker-compose -f docker-compose-dev.yml up -d --build
 ```
 
-**三個容器**：
+| Container | Image | Description |
+|-----------|-------|-------------|
+| `solar_db` | mysql:8.0 | MySQL, data in `./mysql/` |
+| `solar_backend` | custom (`./backend/Dockerfile`) | Django 5.0, port 8000 |
+| `solar_tailscale` | tailscale/tailscale:latest | HTTPS tunnel |
 
-| 容器 | Image | 說明 |
-|------|-------|------|
-| `solar_db` | mysql:8.0 | MySQL 資料庫，資料存在 `./mysql/` |
-| `solar_backend` | 自建（`./backend/Dockerfile`） | Django 5.0，port 8000 |
-| `solar_tailscale` | tailscale/tailscale:latest | Funnel 隧道，公開 HTTPS |
+**Access**: local `http://localhost:8000/dashboard/` | public `https://solar-dashboard.tail7c1eb9.ts.net/dashboard/`
 
-**存取方式**：
-- 本機：`http://localhost:8000/dashboard/`
-- 外網：`https://solar-dashboard.tail7c1eb9.ts.net/dashboard/`
-
-### Dockerfile 重要事項
-pip install 全部需要加 `--trusted-host` 參數，否則在有 SSL 攔截的環境下會失敗：
-```dockerfile
-RUN pip install -r requirements.txt --no-cache-dir \
-    --trusted-host pypi.org \
-    --trusted-host pypi.python.org \
-    --trusted-host files.pythonhosted.org
+**Logs & debug:**
+```bash
+docker logs solar_backend --tail 50
+docker logs solar_tailscale --tail 50
+docker exec -it solar_backend bash
 ```
 
-### Tailscale 注意事項
-Tailscale 容器若需要重新連線（docker-compose down 後再 up），必須確認本機沒有 **Fiddler** 在執行。Fiddler 的 HTTPS Decrypt 功能會攔截容器的 TLS 連線，導致容器無法連到 `controlplane.tailscale.com`，錯誤訊息為 `x509: certificate signed by unknown authority (CN=DO_NOT_TRUST_FiddlerRoot)`。
+**Dockerfile**: All `pip install` must include `--trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org` (SSL interception environment).
 
----
+**Tailscale warning**: Close **Fiddler** before `docker-compose up`. Fiddler's HTTPS decrypt intercepts container TLS → `x509: certificate signed by unknown authority (CN=DO_NOT_TRUST_FiddlerRoot)`.
 
-## 4. 儀表板頁面（dashboard.html）
+## 4. Dashboard (dashboard.html)
 
-位置：`backend/static/dashboard.html`（單一大檔案，約 1500 行）
+Single file at `backend/static/dashboard.html` (also mirrored to `backend/staticfiles/dashboard.html`). Four tabs:
+1. **系統總覽** — realtime power/energy for control & experiment groups
+2. **功率曲線** — time-series charts per system
+3. **固定式面板發電分析** — CSV query by tilt/azimuth; includes dual-Y-axis illumination chart (pink bars = illumination W/m², left Y = Power output W, right Y = Illumination W/m², X = Time of day)
+4. **Z3A 採集** — live query of panel V/I/P from Z3A cloud API
 
-**頁籤結構**：
-1. **系統總覽** — 對照組/實驗組即時功率、發電量
-2. **功率曲線** — 各系統時間序列圖
-3. **固定面板** — 歷史 CSV 資料查詢，依傾角/方位角篩選
-4. **Z3A 採集** — 從 Z3A 雲端 API 即時查詢各面板電壓/電流/功率（★ 新增）
+**Recent dashboard changes:**
+- Removed old "固定式面板" tab (was duplicate)
+- Renamed "CSV 分析" → "固定式面板發電分析" (icon: fa-solar-panel)
+- Added illumination bar overlay to the CSV power chart (Chart.js mixed bar+line, dual Y-axis)
+- Restored "發電比較" tab (comparison of 4 experiment vs control groups)
 
----
+## 5. API Endpoints (base: `/api/`)
 
-## 5. 後端 API 端點
+**Fixed Panel API (CSV-based):**
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/fixed-panels/status/` | CSV load status & column list |
+| `GET /api/fixed-panels/summary/` | Total energy summary |
+| `GET /api/fixed-panels/power-curve/` | Daily power curve (`?date=YYYY-MM-DD`) |
+| `GET /api/fixed-panels/monthly/` | Monthly energy |
+| `GET /api/fixed-panels/daily/` | Daily energy |
+| `GET /api/fixed-panels/panel-list/` | All panel IDs |
+| `GET /api/fixed-panels/day-curve/` | Per-minute curve |
+| `GET /api/fixed-panels/panel-trend/` | Long-term panel trend |
+| `GET /api/fixed-panels/raw-csv/` | Export raw CSV |
 
-Base URL：`/api/`
+**Z3A IoT API:**
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/z3a/devices/` | List all bound devices |
+| `GET /api/z3a/history/` | Device history (`?device_id=&start=&end=&measured_fun=`) |
+| `GET /api/z3a/status/` | Token/connection diagnostics |
+| `POST /api/z3a/refresh/` | Manually refresh token |
 
-### 固定面板 API（讀取 CSV 檔案）
-| 端點 | 說明 |
-|------|------|
-| `GET /api/fixed-panels/status/` | CSV 載入狀態與欄位清單 |
-| `GET /api/fixed-panels/summary/` | 所有面板總發電量摘要 |
-| `GET /api/fixed-panels/power-curve/` | 單日功率曲線（需 `?date=YYYY-MM-DD`） |
-| `GET /api/fixed-panels/monthly/` | 月發電量 |
-| `GET /api/fixed-panels/daily/` | 日發電量 |
-| `GET /api/fixed-panels/panel-list/` | 所有面板 ID 清單 |
-| `GET /api/fixed-panels/day-curve/` | 逐分鐘曲線 |
-| `GET /api/fixed-panels/panel-trend/` | 面板長期趨勢 |
-| `GET /api/fixed-panels/raw-csv/` | 匯出原始 CSV |
+`measured_fun`: `1`=voltage (dcv_value÷1e6→V), `5`=current (dca_value÷1e9→A, shunt correction), `4`=dcma_value (always 0, unused)
 
-### Z3A IoT API（代理至七雲物聯雲端）
-| 端點 | 說明 |
-|------|------|
-| `GET /api/z3a/devices/` | 列出所有綁定裝置 |
-| `GET /api/z3a/history/` | 取得單一裝置歷史數據（需 `?device_id=&start=&end=&measured_fun=`） |
-| `GET /api/z3a/status/` | Token / 連線狀態診斷 |
-| `POST /api/z3a/refresh/` | 手動重新取得 Token |
-
-**measured_fun 對應**：
-- `1` = 電壓（dcv_value ÷ 1,000,000 → V）
-- `5` = 電流（dca_value ÷ 1,000,000,000 → A；搭配分流器修正係數）
-- `4` = dcma_value（目前恆為 0，無用）
-
-### 即時資料 API（樹莓派上傳用）
-| 端點 | 說明 |
-|------|------|
+**Realtime API (Raspberry Pi upload):**
+| Endpoint | Description |
+|----------|-------------|
 | `GET/POST /api/systems/` | SystemGroup CRUD |
 | `GET/POST /api/power-records/` | PowerRecord CRUD |
-| `GET /api/realtime-data/` | 最新即時資料 |
+| `GET /api/realtime-data/` | Latest realtime data |
 
----
+## 6. Z3A Device Map
 
-## 6. Z3A 面板對照表
-
-共 27 個 DeviceId（1 個待確認）：
-
-| DeviceId | panel_id | 傾角 | 方位角 | 備註 |
-|----------|----------|------|--------|------|
+| DeviceId | panel_id | Tilt | Azimuth | Pos |
+|----------|----------|------|---------|-----|
 | Z3A0412097 | Panel_20_180_A | 20° | 180° | R1-4 |
 | Z3A0412118 | Panel_20_180_B | 20° | 180° | R1-3 |
 | Z3A0412115 | Panel_30_180_A | 30° | 180° | R1-2 |
@@ -187,118 +167,123 @@ Base URL：`/api/`
 | Z3A0512128 | Panel_20_200_B | 20° | 200° | L1-3 |
 | Z3A0512135 | Panel_30_200_A | 30° | 200° | L1-2 |
 | Z3A0412112 | Panel_30_200_B | 30° | 200° | L1-1 |
-| Z3A0512133 | Panel_10_180_A | 10° | 180° | R2-4（已確認） |
+| Z3A0512133 | Panel_10_180_A | 10° | 180° | R2-4 ✓ |
 | Z3A0412122 | Panel_10_180_B | 10° | 180° | R2-3 |
 | Z3A0412099 | Panel_15_180_A | 15° | 180° | R2-2 |
 | Z3A0412108 | Panel_15_180_B | 15° | 180° | R2-1 |
-| Z3A0512130 | —（備用1） | — | — | R2-5 備用，未納入實驗 |
-| Z3A0512131 | —（備用2） | — | — | R2-6 備用，未納入實驗 |
+| Z3A0512130 | — (spare 1) | — | — | R2-5, not in experiment |
+| Z3A0512131 | — (spare 2) | — | — | R2-6, not in experiment |
 | Z3A0512132 | Panel_10_160_A | 10° | 160° | L2-8 |
 | Z3A0512129 | Panel_10_160_B | 10° | 160° | L2-7 |
 | Z3A0412098 | Panel_15_160_A | 15° | 160° | L2-6 |
 | Z3A0412113 | Panel_15_160_B | 15° | 160° | L2-5 |
-| Z3A0512125 | Panel_15_200_A | 15° | 200° | L2-4（已確認） |
+| Z3A0512125 | Panel_15_200_A | 15° | 200° | L2-4 ✓ |
 | Z3A0412105 | Panel_15_200_B | 15° | 200° | L2-3 |
 | Z3A0512126 | Panel_10_200_A | 10° | 200° | L2-2 |
 | Z3A0412120 | Panel_10_200_B | 10° | 200° | L2-1 |
-| Z3A0412111 | Tracking_2_25_上 | 25° | — | 追日A上（實驗組） |
-| Z3A0512124 | Tracking_2_25_下 | 25° | — | 追日A下（實驗組） |
-| Z3A0412103 | Tracking_1_20_上 | 20° | — | 追日B上（對照組） |
-| Z3A0312076 | Tracking_1_20_下 | 20° | — | 追日B下（對照組） |
+| Z3A0412111 | Tracking_2_25_Top | 25° | — | Experiment A upper |
+| Z3A0512124 | Tracking_2_25_Bot | 25° | — | Experiment A lower |
+| Z3A0412103 | Tracking_1_20_Top | 20° | — | Control B upper |
+| Z3A0312076 | Tracking_1_20_Bot | 20° | — | Control B lower |
 
----
+## 7. Main Dataset
 
-## 7. 主要資料檔
+`data/combined_solar_data_20250301_20260406_processed.csv` (49 MB)
+- **Period**: 2025-03-01 to 2026-04-06 | **Interval**: 10 min | **Timezone**: Asia/Taipei (UTC+8)
+- **Columns (20)**: `timestamp`, `tilt_angle`, `azimuth_angle`, `panel_id`, `voltage_V`, `current_A`, `power_W`, `daily_energy_Wh`, `solar_zenith`, `solar_azimuth`, `solar_elevation`, `theoretical_poa`, `airmass`, `dni`, `dhi`, `ghi`, `is_tracking`, `tracking_system`, `tracking_position`, `id`
 
-**`data/combined_solar_data_20250301_20260406_processed.csv`**
-- 時間範圍：2025-03-01 ～ 2026-04-06
-- 欄位（共 20 欄）：`timestamp`, `tilt_angle`, `azimuth_angle`, `panel_id`, `voltage_V`, `current_A`, `power_W`, `daily_energy_Wh`, `solar_zenith`, `solar_azimuth`, `solar_elevation`, `theoretical_poa`, `airmass`, `dni`, `dhi`, `ghi`, `is_tracking`, `tracking_system`, `tracking_position`, `id`
-- 時區：Asia/Taipei（UTC+8）
-- 取樣頻率：10 分鐘
+## 8. ANFIS Training Pipeline
 
----
-
-## 8. z3a_collect.py（歷史資料補抓腳本）
-
-用於將 Z3A 雲端歷史資料合併進 CSV 檔案，格式與現有 CSV 完全一致。
-
+**`algorithms/train_pipeline.py`** — one-click launcher managing datasets/ and runs/:
 ```bash
-# 抓最近 7 天（預設）
-python z3a_collect.py
-
-# 指定日期範圍
-python z3a_collect.py --start 2026-04-07 --end 2026-05-03
-
-# 指定天數
-python z3a_collect.py --days 30
+cd algorithms/
+python train_pipeline.py                                      # full pipeline (preprocess + train)
+python train_pipeline.py --desc "with_illumination"           # add label to folder name
+python train_pipeline.py --skip-preprocess                    # use latest dataset, train only
+python train_pipeline.py --skip-preprocess --dataset ds02_20260506_含照度  # specify dataset
+python train_pipeline.py --min-power 15 --overheat-window 90  # custom preprocess params
 ```
 
-⚠ 執行前需先設定環境變數 `Z3A_TOKEN`，或讓 `.env.dev` 中的 Token 生效。  
-⚠ Token 過期時間：2026-05-09（`exp: 1778646040`），過期後需重新取得。
+**Preprocessing** (`algorithms/datapreprocessor/data preprocessor.py` — `SimpleSolarPreprocessor`):
+- Removes `power_W < min_power` (default 10W, nighttime/shading)
+- Detects overheating: power sustained at `overheat_power ± overheat_tolerance` (45±10W) for ≥ `overheat_window` min (120 min) — vectorized with pandas groupby+cumcount (~100× faster than original nested loops)
+- Auto-derives `day_of_year` and `hour_decimal` from `timestamp` if columns absent
+- `TIME_INTERVAL = 10` minutes (fixed; previous bug had 5)
+- Result: 750k → 294k rows (39.2%), 12 angle combos balanced at 18k–29k each
 
----
+**Model** (`solar_anfis_model_v2.py`):
+- ANFIS: Gaussian MF layer (7 MFs/input, centers+sigmas trainable) → Reshape → Dense(128→64→32→16→1) + BatchNorm + Dropout
+- Auto-derives `day_of_year`/`hour_decimal` from `timestamp` if absent
+- `main(file_path, output_dir)` — output_dir separates model files from data
+- Save format: `.keras` not `.h5` (h5py fails on Windows paths with Chinese/Unicode characters)
+- ModelCheckpoint: `best_anfis.keras`; final model: `anfis_{with/without}_illumination.keras`
 
-## 9. 待解決事項
+**Current results** (run04, ds02, 9 features with illumination):
+- R²=0.844, RMSE=32.43W, MAE=20.98W — overall OK
+- Per-range R² all negative → model learns time→power mapping, not angle differentiation
+- Next step: add `theoretical_poa`, `solar_elevation` as features
 
-| 問題 | 說明 | 優先度 |
-|------|------|--------|
-| Z3A 歷史資料補抓 | 2026-04-07 至今的資料尚未合併進 CSV | 中 |
-| Z3A Token 過期 | 2026-05-13 到期，需在 App 重新登入取得新 Token 並更新 `.env.dev` 和 `z3a_collect.py` | 中 |
-| 電流單位換算確認 | dca_value ÷ 1e9 算出的 A 值是否需乘以分流器修正係數（20A/75mV），需對照實測值確認 | 低 |
-| 備用裝置 R2-5/R2-6 | Z3A0512130、Z3A0512131 為備用裝置，確認是否需納入資料收集 | 低 |
+## 9. z3a_collect.py
 
----
+Fetches Z3A cloud history and merges into CSV (same format as main dataset).
+```bash
+python z3a_collect.py                              # last 7 days (default)
+python z3a_collect.py --start 2026-04-07 --end 2026-05-03
+python z3a_collect.py --days 30
+```
+⚠ Requires `Z3A_TOKEN` env var (or `.env.dev`). Token expires **2026-05-09** (`exp: 1778646040`).
 
-## 10. 常用指令
+## 10. Open Issues
+
+| Issue | Detail | Priority |
+|-------|--------|----------|
+| Z3A historical backfill | Data from 2026-04-07 onward not yet merged | Medium |
+| Z3A Token expiry | Expires 2026-05-09; re-login in app, update `.env.dev` + `z3a_collect.py` | Medium |
+| Current unit conversion | Confirm if dca_value÷1e9 needs shunt correction factor (20A/75mV) | Low |
+| Spare devices R2-5/R2-6 | Z3A0512130, Z3A0512131 — confirm if needed | Low |
+
+## 11. Common Commands
 
 ```bash
-# Docker 操作（必須在專案根目錄）
-docker-compose -f docker-compose-dev.yml up -d          # 啟動全部服務
-docker-compose -f docker-compose-dev.yml down           # 停止全部服務
-docker-compose -f docker-compose-dev.yml build          # 重建 backend image
-docker-compose -f docker-compose-dev.yml up -d --build  # 重建並啟動
-
-# 查看 log
+# Docker (run from project root)
+docker-compose -f docker-compose-dev.yml up -d
+docker-compose -f docker-compose-dev.yml down
+docker-compose -f docker-compose-dev.yml up -d --build
 docker logs solar_backend --tail 50
 docker logs solar_tailscale --tail 50
-
-# 進入容器除錯
 docker exec -it solar_backend bash
 
-# Z3A API 除錯
+# Data & debug
 python check_z3a.py
-
-# 歷史資料補抓
 python z3a_collect.py --start 2026-04-07 --end 2026-05-03
-
-# 固定面板資料處理 GUI
 python fixed_data_process_visualization/solar_data_pipeline.py
 
-# 樹莓派控制器（在樹莓派上執行）
+# ANFIS training
+cd algorithms/
+python train_pipeline.py --skip-preprocess --dataset ds02_20260506_含照度
+
+# Raspberry Pi (run on Pi)
 python raspberry-pi/src/main_controller.py --mode both
 ```
 
----
+## 12. Environment Variables (.env.dev)
 
-## 11. 環境變數（.env.dev 重要欄位）
+| Variable | Description |
+|----------|-------------|
+| `Z3A_BASE_URL` | `https://server.qiyunwulian.com:12341` |
+| `Z3A_PHONE` | Account phone (for auto re-login) |
+| `Z3A_PASSWORD` | Account password |
+| `Z3A_TOKEN` | Bearer token, expires 2026-05-09 |
+| `TS_AUTHKEY` | Tailscale Auth Key (Reusable, No Expiry, tag:container) |
+| `SQL_ROOT_PASSWORD` | MySQL root password |
+| `SQL_USER` / `SQL_PASSWORD` | MySQL app credentials |
+| `DJANGO_ALLOWED_HOSTS` | Includes `solar-dashboard.tail7c1eb9.ts.net` |
+| `CSRF_TRUSTED_ORIGINS` | Includes `https://solar-dashboard.tail7c1eb9.ts.net` |
 
-| 變數 | 說明 |
-|------|------|
-| `Z3A_BASE_URL` | 七雲物聯 API 根 URL（`https://server.qiyunwulian.com:12341`） |
-| `Z3A_PHONE` | 七雲物聯帳號手機號（用於自動重新登入） |
-| `Z3A_PASSWORD` | 七雲物聯帳號密碼 |
-| `Z3A_TOKEN` | Bearer Token，過期時間 2026-05-09 |
-| `TS_AUTHKEY` | Tailscale Auth Key（Reusable + No Expiry + tag:container） |
-| `SQL_ROOT_PASSWORD` | MySQL root 密碼 |
-| `SQL_USER` / `SQL_PASSWORD` | MySQL 應用程式帳號 |
-| `DJANGO_ALLOWED_HOSTS` | 含 `solar-dashboard.tail7c1eb9.ts.net` |
-| `CSRF_TRUSTED_ORIGINS` | 含 `https://solar-dashboard.tail7c1eb9.ts.net` |
+## 13. Design Decisions
 
----
-
-## 12. 已知設計決策與限制
-
-- **dashboard.html 是單一大檔案**：所有前端 HTML/CSS/JS 都在這一個檔案，沒有 React/Vue，方便 Django static file 直接 serve。
-- **固定面板資料用 CSV 而非 DB**：資料量大（49 MB），Django 啟動時一次性載入記憶體，查詢走 pandas。
-- **Z3A 的 `requests` 套件用 lazy import**：避免套件未安裝時整個 Django crash，透過 `_REQUESTS_OK` flag，缺套件時各端點回傳 503。
-- **Tailscale 用 Docker 容器而非 Windows 原生**：方便跨機器部署，但需注意 SSL 攔截工具（如 Fiddler）開著時會導致 Tailscale 容器無法連線。
+- **dashboard.html is one file**: No React/Vue; all HTML/CSS/JS in one file for simple Django static serving.
+- **Fixed panel data in CSV not DB**: 49 MB loaded into memory at Django startup; queries use pandas.
+- **Z3A `requests` lazy import**: `_REQUESTS_OK` flag prevents Django crash if package missing; returns 503.
+- **Tailscale in Docker not Windows native**: Easier cross-machine deploy; Fiddler HTTPS decrypt breaks container TLS.
+- **Model saves as `.keras` not `.h5`**: h5py fails on Windows paths containing Chinese/Unicode characters.

@@ -31,15 +31,23 @@ def get_df():
             _load_error = f"找不到資料檔案: {path}"
             return None
         try:
-            df = pd.read_csv(path, usecols=[
+            # 讀取所有可用欄位，illumination 為選填（舊版 CSV 可能無此欄）
+            available_cols = pd.read_csv(path, nrows=0).columns.tolist()
+            base_cols = [
                 "timestamp", "date", "tilt_angle", "azimuth_angle",
                 "power_W", "panel_id", "voltage", "current_A",
                 "daily_energy_Wh", "hour_decimal",
-            ], dtype={
+            ]
+            optional_cols = ["illumination"]
+            usecols = base_cols + [c for c in optional_cols if c in available_cols]
+            dtype_map = {
                 "power_W": "float32", "voltage": "float32",
                 "current_A": "float32", "daily_energy_Wh": "float32",
                 "hour_decimal": "float32",
-            })
+            }
+            if "illumination" in usecols:
+                dtype_map["illumination"] = "float32"
+            df = pd.read_csv(path, usecols=usecols, dtype=dtype_map)
             # 追日面板的 azimuth_angle 為字串（「追日」/「tracking」）
             # 轉成數值，無法轉換的變 NaN，再過濾掉 → 只留固定式面板
             df["azimuth_angle"] = pd.to_numeric(df["azimuth_angle"], errors="coerce")

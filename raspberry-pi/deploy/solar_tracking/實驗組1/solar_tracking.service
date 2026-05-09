@@ -1,0 +1,17 @@
+[Unit]
+Description=Solar Tracking Controller (實驗組1)
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/solar_tracking/實驗組1
+ExecStart=/usr/bin/python3 /home/pi/solar_tracking/實驗組1/anfis_controller.py
+Restart=on-failure
+RestartSec=30
+StandardOutput=append:/home/pi/solar_tracking/實驗組1/service.log
+StandardError=append:/home/pi/solar_tracking/實驗組1/service.log
+
+[Install]
+WantedBy=multi-user.target

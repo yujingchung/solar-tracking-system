@@ -274,7 +274,7 @@ def analyze_data_balance(df):
     return angle_stats
 
 
-def main(file_path=None):
+def main(file_path=None, output_dir=None):
     print("開始ANFIS模型訓練...")
     setup_chinese_font()
 
@@ -291,7 +291,17 @@ def main(file_path=None):
         print(f"❌ 載入失敗: {e}")
         return
 
-    # === 2. 定義必要欄位 ===
+    # === 2. 從 timestamp 自動推導 day_of_year / hour_decimal（若欄位不存在）===
+    if 'timestamp' in df.columns:
+        ts = pd.to_datetime(df['timestamp'], errors='coerce')
+        if 'day_of_year' not in df.columns:
+            df['day_of_year'] = ts.dt.dayofyear
+            print("✅ 自動計算 day_of_year（從 timestamp）")
+        if 'hour_decimal' not in df.columns:
+            df['hour_decimal'] = ts.dt.hour + ts.dt.minute / 60 + ts.dt.second / 3600
+            print("✅ 自動計算 hour_decimal（從 timestamp）")
+
+    # === 3. 定義必要欄位 ===
     required_columns = [
         'day_of_year',
         'hour_decimal',
@@ -304,9 +314,10 @@ def main(file_path=None):
 
     if missing_columns:
         print(f"❌ 缺少必要欄位: {missing_columns}")
+        print("   提示：CSV 需要包含 'timestamp' 或手動提供上述欄位")
         return
 
-    # === 3. 數據類型轉換 ===
+    # === 4. 數據類型轉換 ===
     print(f"\n轉換數據類型...")
     for col in required_columns:
         df[col] = pd.to_numeric(df[col], errors='coerce')
@@ -314,7 +325,7 @@ def main(file_path=None):
     if 'illumination' in df.columns:
         df['illumination'] = pd.to_numeric(df['illumination'], errors='coerce')
 
-    # === 4. 清理缺失值 ===
+    # === 5. 清理缺失值 ===
     initial_count = len(df)
     df = df.dropna(subset=required_columns)
     removed_count = initial_count - len(df)
@@ -381,7 +392,9 @@ def main(file_path=None):
     anfis_model.summary()
 
     # === 13. 訓練配置 ===
-    output_dir = os.path.dirname(file_path) if os.path.dirname(file_path) else '.'
+    if output_dir is None:
+        output_dir = os.path.dirname(file_path) if os.path.dirname(file_path) else '.'
+    os.makedirs(output_dir, exist_ok=True)
 
     callbacks = [
         EarlyStopping(
@@ -398,7 +411,7 @@ def main(file_path=None):
             verbose=1
         ),
         ModelCheckpoint(
-            filepath=os.path.join(output_dir, 'best_anfis.h5'),
+            filepath=os.path.join(output_dir, 'best_anfis.keras'),
             monitor='val_loss',
             save_best_only=True,
             verbose=1
@@ -552,7 +565,7 @@ def main(file_path=None):
     plt.show()
 
     # === 17. 保存模型 ===
-    model_path = os.path.join(output_dir, f'anfis_{model_suffix}.h5')
+    model_path = os.path.join(output_dir, f'anfis_{model_suffix}.keras')
     scaler_x_path = os.path.join(output_dir, f'scaler_X_{model_suffix}.save')
     config_path = os.path.join(output_dir, f'model_config_{model_suffix}.json')
 
@@ -681,11 +694,11 @@ if __name__ == "__main__":
         print("# 載入配置")
         if result['has_illumination']:
             config_file = 'model_config_with_illumination.json'
-            model_file = 'anfis_with_illumination.h5'
+            model_file = 'anfis_with_illumination.keras'
             scaler_file = 'scaler_X_with_illumination.save'
         else:
             config_file = 'model_config_without_illumination.json'
-            model_file = 'anfis_without_illumination.h5'
+            model_file = 'anfis_without_illumination.keras'
             scaler_file = 'scaler_X_without_illumination.save'
 
         print(f"with open('{config_file}', 'r') as f:")
