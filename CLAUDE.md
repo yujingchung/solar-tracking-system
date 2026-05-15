@@ -107,17 +107,22 @@ docker exec -it solar_backend bash
 
 ## 4. Dashboard (dashboard.html)
 
-Single file at `backend/static/dashboard.html` (also mirrored to `backend/staticfiles/dashboard.html`). Four tabs:
-1. **系統總覽** — realtime power/energy for control & experiment groups
-2. **功率曲線** — time-series charts per system
-3. **固定式面板發電分析** — CSV query by tilt/azimuth; includes dual-Y-axis illumination chart (pink bars = illumination W/m², left Y = Power output W, right Y = Illumination W/m², X = Time of day)
-4. **Z3A 採集** — live query of panel V/I/P from Z3A cloud API
+Single file at `backend/static/dashboard.html` (~2189 行) + design system in `backend/static/theme.css`. 完整重寫 2026-05-14：**學術深藍 + 錢金黃** 配色系統，手繪 SVG 圖示（不依賴 emoji）。
 
-**Recent dashboard changes:**
-- Removed old "固定式面板" tab (was duplicate)
-- Renamed "CSV 分析" → "固定式面板發電分析" (icon: fa-solar-panel)
-- Added illumination bar overlay to the CSV power chart (Chart.js mixed bar+line, dual Y-axis)
-- Restored "發電比較" tab (comparison of 4 experiment vs control groups)
+**7 個頁籤架構：**
+1. **總覽** — 研究 KPI 列（累計能量 / 最佳組合 / 最差組合 / 差異 %）+ 4 系統即時卡 + 所有系統紀錄表 + 季節切換器
+2. **固定面板研究** — 由 backend `/api/fixed-panels/kpi-summary/` 計算的研究結論：12 角度組合排行榜、方位/傾角效應 bar charts、A vs B 一致性散布圖、月度功率 heatmap、單日深入、月度形態、A vs B 長期趨勢
+3. **CSV 進階分析** — 瀏覽器端讀原始 CSV 自行運算（原舊版功能完整保留）：年/月按鈕、日期比較、面板比較（含照度雙 Y 軸）、月度統計
+4. **即時監控** — 4 系統合併為單一頁籤，內部 pill 切換（取代原 4 個分離 tab）
+5. **發電比較** — 4 組功率對比（line + bar + 即時表）
+6. **Z3A 採集** — 雲端 IoT 即時查詢
+7. **下載中心** — 原始 CSV 下載 + PowerRecord 匯出 + 欄位字典
+
+**設計細節：**
+- `theme.css` 定義 `--navy-1~5` / `--gold-1~3` / `--exp-*` / `--ctrl-*` design tokens
+- 金色僅限「冠軍 / 最佳 / 強調」使用，避免廉價感
+- 數字統一用 Consolas tabular-nums 對齊小數點
+- KPI 排行榜冠軍用金色漸層、2-5 名深藍、6-8 中藍、9-12 淺灰
 
 ## 5. API Endpoints (base: `/api/`)
 
@@ -133,6 +138,10 @@ Single file at `backend/static/dashboard.html` (also mirrored to `backend/static
 | `GET /api/fixed-panels/day-curve/` | Per-minute curve |
 | `GET /api/fixed-panels/panel-trend/` | Long-term panel trend |
 | `GET /api/fixed-panels/raw-csv/` | Export raw CSV |
+| `GET /api/fixed-panels/kpi-summary/` | **(新) 研究 KPI**：總能量、12 組合排行、方位/傾角/季節能量、A/B 一致性。支援 `?season=spring\|summer\|fall\|winter\|all` |
+| `POST /api/fixed-panels/reload/` | **(新) 清除 cache 重讀 CSV**，scheduled task 抓完新資料後呼叫 |
+
+**Backend cache 機制：** `fixed_panel_api.py` 的 `get_df()` 加入 mtime 檢查，CSV 檔被外部更新後自動重讀；`invalidate_df_cache()` 提供手動觸發。
 
 **Z3A IoT API:**
 | Endpoint | Description |
@@ -231,14 +240,30 @@ python z3a_collect.py                              # last 7 days (default)
 python z3a_collect.py --start 2026-04-07 --end 2026-05-03
 python z3a_collect.py --days 30
 ```
-⚠ Requires `Z3A_TOKEN` env var (or `.env.dev`). Token expires **2026-05-09** (`exp: 1778646040`).
+**Token 機制（重要）：**
+- 從 `.env.dev` 讀 `Z3A_TOKEN`（access）+ `Z3A_REFRESH_TOKEN`（refresh）
+- 過期會嘗試 (1) refresh token 換新（雲端未實作此端點，會失敗）→ (2) 用 `Z3A_PHONE` + `Z3A_PASSWORD` 自動登入（**雲端強制圖形驗證碼，純自動會失敗**）
+- 實際運作：**約每 10 天 user 從 Fiddler 抓新 token 貼進 .env.dev**（見 `Z3A_TOKEN_SOP.md`）
+
+**輔助腳本（這輪新增）：**
+- `z3a_check_token.py` — 隨時查 token 剩多少天
+- `z3a_ping.py` — 確認雲端連線是否被 IP block / Fiddler 卡住
+- `z3a_debug_login.py` / `z3a_debug_login2.py` — 登入格式盲試（已找出正確格式）
+- `z3a_debug_refresh.py` — refresh 端點探測（已確認雲端未實作）
+- `Z3A_TOKEN_SOP.md` — 手動更新 SOP
+
+**抓取自動化 — Windows Task Scheduler（這輪新增）：**
+- `solar_weekly_run.ps1` — 本機完整週運維腳本：docker 健檢 → token 檢查 → z3a_collect --pipeline → backend reload
+- `register_task_scheduler.ps1` — 一鍵註冊到 Windows Task Scheduler（每週一 02:00）
+- Cowork 端有對應的 `solar-weekly-maintenance` 排程，每週四 09:00 讀 .env.dev 算 token 剩多少天並通知
 
 ## 10. Open Issues
 
 | Issue | Detail | Priority |
 |-------|--------|----------|
-| Z3A historical backfill | Data from 2026-04-07 onward not yet merged | Medium |
-| Z3A Token expiry | Expires 2026-05-09; re-login in app, update `.env.dev` + `z3a_collect.py` | Medium |
+| ~~Z3A historical backfill~~ | ✓ 已於 2026-05-15 補齊到 5/15；之後 Task Scheduler 每週自動 | Done |
+| ~~Z3A Token expiry~~ | ✓ 每 10 天從 Fiddler 抓新 token；Cowork 週四自動提醒 | Done |
+| Z3A refresh endpoint | 雲端未實作 `/user/refreshToken` 等端點；待 App 升級後 Fiddler 抓 | Low |
 | Current unit conversion | Confirm if dca_value÷1e9 needs shunt correction factor (20A/75mV) | Low |
 | Spare devices R2-5/R2-6 | Z3A0512130, Z3A0512131 — confirm if needed | Low |
 
@@ -273,7 +298,9 @@ python raspberry-pi/src/main_controller.py --mode both
 | `Z3A_BASE_URL` | `https://server.qiyunwulian.com:12341` |
 | `Z3A_PHONE` | Account phone (for auto re-login) |
 | `Z3A_PASSWORD` | Account password |
-| `Z3A_TOKEN` | Bearer token, expires 2026-05-09 |
+| `Z3A_TOKEN` | Access token，約 10 天有效，每週 Task Scheduler 用這個 |
+| `Z3A_REFRESH_TOKEN` | tokenString2，3 個月有效（雲端目前無 refresh 端點，備用）|
+| `Z3A_CSV_PATH` | z3a_collect 目標 CSV 完整路徑 |
 | `TS_AUTHKEY` | Tailscale Auth Key (Reusable, No Expiry, tag:container) |
 | `SQL_ROOT_PASSWORD` | MySQL root password |
 | `SQL_USER` / `SQL_PASSWORD` | MySQL app credentials |
@@ -287,3 +314,17 @@ python raspberry-pi/src/main_controller.py --mode both
 - **Z3A `requests` lazy import**: `_REQUESTS_OK` flag prevents Django crash if package missing; returns 503.
 - **Tailscale in Docker not Windows native**: Easier cross-machine deploy; Fiddler HTTPS decrypt breaks container TLS.
 - **Model saves as `.keras` not `.h5`**: h5py fails on Windows paths containing Chinese/Unicode characters.
+- **Z3A 排程交給 Windows Task Scheduler 而非 Cowork**：Cowork scheduled task 跑在 Linux sandbox，沒 docker、被 proxy 擋住 IoT 雲端；Windows Task Scheduler 跑在使用者本機，能真正做事。Cowork 端的排程降級為「token 將過期通知」。
+- **Z3A 半自動 token 機制**：雲端強制圖形驗證碼，無法純自動登入；改採「每 10 天手動 Fiddler 抓一次貼進 .env.dev」+ 排程在 token 將過期時提醒 user。
+- **Python 必須 `PYTHONUTF8=1`**：Windows 預設 stdout 是 cp950，遇到 Z3A 雲端 CSV 內的簡體字（如「时间」）會 UnicodeEncodeError 且**靜默失敗**（step 4 pvlib 部分跑、合併 0 筆，user 不會發現）。`solar_weekly_run.ps1` 已內建 `$env:PYTHONUTF8='1'` + `python -X utf8`，建議 user 也設系統環境變數一勞永逸。
+- **PowerShell 5.1 讀 .ps1 預設用 cp950**：.ps1 含中文必須加 UTF-8 BOM 才不會 parse 失敗。Cowork Edit/Write tool 可保 BOM；bash 寫入需手動加 BOM。
+- **Cowork ↔ Windows 同步偶有落差**：bash truncate/heredoc 寫到 mount 路徑不一定即時反映到 Windows；Edit/Read 工具走 Windows 檔案系統直接讀寫較可靠。後續若編輯失敗看到「我這邊行數 ≠ Windows 行數」現象，要用 Edit/Read 而非 bash。
+
+## 14. 本輪 2026-05-15 主要改進
+
+1. **Dashboard 完全重設計** — `theme.css` 設計系統（學術深藍 + 錢金黃）+ 7 頁籤架構 + 研究 KPI 列 + 季節切換 + 排行榜 + A vs B 一致性散布圖
+2. **新 backend endpoint** — `/api/fixed-panels/kpi-summary/`（研究 KPI 計算）+ `/api/fixed-panels/reload/`（手動清快取）+ mtime auto-reload 機制
+3. **Z3A 自動化** — 找出登入格式（form-urlencoded + MD5 + 圖形驗證碼必填）、修正 z3a_collect.py、新增 z3a_check_token / debug 系列工具、寫 `Z3A_TOKEN_SOP.md`
+4. **Windows Task Scheduler** — `solar_weekly_run.ps1` + `register_task_scheduler.ps1`，每週一 02:00 自動跑完整流程，log 寫到 `logs/`
+5. **Cowork 排程降級** — `solar-weekly-maintenance` 改為週四 09:00 純 token 提醒，不再嘗試做 docker / 雲端工作
+6. **2026-04-07 ~ 5/15 資料缺口已補齊**

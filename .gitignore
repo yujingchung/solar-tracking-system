@@ -12,10 +12,12 @@ dist/
 db.sqlite3
 /staticfiles/
 
-# 環境變數
+# 環境變數（含備份檔，因為含 token）
 .env
 .env.dev
 .env.prod
+.env.*.bak*
+.env.dev.bak*
 
 # 資料庫檔案
 mysql/
@@ -35,3 +37,16 @@ data/
 # Word 文件
 *.docx
 test_write.txt
+
+# 自動化排程產生的執行 log
+logs/
+# scheduled task 中間產出（每週重新生成）
+z3a_pipeline_output/
+
+# Dashboard 備份檔（手動 / 自動產生的舊版備份，不上傳）
+backend/static/dashboard.bak.*.html
+backend/staticfiles/dashboard.bak.*.html
+backend/static/*.html.test
+
+# 主資料集 .bak 備份（每週自動產生，已被 *.csv + data/ 規則涵蓋，這裡明確列出）
+data/*.bak.*.csv
