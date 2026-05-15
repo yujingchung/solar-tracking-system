@@ -12,6 +12,7 @@ z3a_collect.py — 從 QY-Z3A 雲端 API 抓取所有面板資料，合併進 co
 
 import argparse
 import base64
+import hashlib
 import json
 import logging
 import os
@@ -40,12 +41,21 @@ log = logging.getLogger(__name__)
 BASE_URL = os.environ.get("Z3A_BASE_URL", "https://server.qiyunwulian.com:12341")
 
 # Bearer Token（從 App 或 Fiddler 取得，到期後需要更新）
+# ⚠ 若 token 過期且設定了 Z3A_PHONE/Z3A_PASSWORD，會自動重新登入
 TOKEN = os.environ.get(
     "Z3A_TOKEN",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
     ".eyJQaG9uZU51bWJlciI6IjEzNTg0ODA5MzUzIiwiZXhwIjoxNzc4NjQ2MDQwLCJpc3MiOiJ3d3cuaW90Ny5jbiJ9"
     ".UkjrCG_dUUcJzYkk9LYsSYqS8njW14sVWCJnMce2qSQ",
 )
+
+# 自動登入用的帳密（取自 .env.dev 或環境變數）
+Z3A_PHONE    = os.environ.get("Z3A_PHONE", "")
+Z3A_PASSWORD = os.environ.get("Z3A_PASSWORD", "")
+
+# Refresh token (tokenString2)，用於免驗證碼換新的 access token
+# 3 個月有效，過期才需要手動再抓一次 Fiddler
+Z3A_REFRESH_TOKEN = os.environ.get("Z3A_REFRESH_TOKEN", "")
 
 # 合併目標 CSV 路徑
 CSV_PATH = Path(
@@ -122,6 +132,171 @@ def _jwt_exp(token: str) -> int:
         return int(json.loads(base64.b64decode(part)).get("exp", 0))
     except Exception:
         return 0
+
+
+def _load_env_file(env_path: Path = None) -> dict:
+    """讀取專案根目錄的 .env.dev (KEY=VALUE 格式)，回傳 dict。"""
+    if env_path is None:
+        env_path = Path(__file__).parent / ".env.dev"
+    env = {}
+    if not env_path.exists():
+        return env
+    try:
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, _, v = line.partition("=")
+            v = v.strip().strip('"').strip("'")
+            env[k.strip()] = v
+    except Exception as e:
+        log.warning("讀取 .env.dev 失敗：%s", e)
+    return env
+
+
+def _login_with_phone(phone: str, password: str) -> str | None:
+    """
+    用手機/密碼向 Z3A 雲端登入，回傳新 JWT token；失敗回 None。
+    格式（從 Fiddler 抓回來確認）：
+      POST /user/login
+      Content-Type: application/x-www-form-urlencoded
+      Body: PhoneNumber=...&PassWord=<MD5>&Safetynum=<captcha>&Safetyid=<sid>
+    ⚠ 此 API 強制要圖形驗證碼（Safetynum），純自動登入不可行；
+    本函式僅作為「使用者已手動取得 captcha」時的接口，預設情況下 Z3A 雲端會拒絕。
+    """
+    if not (phone and password):
+        return None
+    try:
+        log.info("嘗試 /user/login (PHONE=%s)…（注意：雲端要驗證碼，此呼叫多半會失敗）", phone)
+        pw_md5 = hashlib.md5(password.encode("utf-8")).hexdigest()
+        r = requests.post(
+            f"{BASE_URL}/user/login",
+            data={"PhoneNumber": phone, "PassWord": pw_md5},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            verify=False, timeout=15,
+        )
+        data = r.json()
+        new_tok = (data.get("data") or {}).get("tokenString") or ""
+        if new_tok:
+            exp = _jwt_exp(new_tok)
+            exp_str = datetime.fromtimestamp(exp).strftime("%Y-%m-%d %H:%M") if exp else "未知"
+            log.info("✓ 登入成功，新 token 到期：%s", exp_str)
+            return new_tok
+        log.warning("登入失敗：%s", str(data)[:300])
+        return None
+    except Exception as e:
+        log.warning("登入請求例外：%s", e)
+        return None
+
+
+def _refresh_with_token2(refresh_token: str) -> str | None:
+    """
+    用 tokenString2 (refresh token) 換新的 access token。
+    嘗試多個可能的端點，找到能用的就回傳新 token。
+    成功比 _login_with_phone 重要 — 因為不用驗證碼。
+    """
+    if not refresh_token:
+        return None
+    # 嘗試的端點與請求模式（已知對的會排前面，逐步驗證後縮小範圍）
+    attempts = [
+        ("POST", "/user/refreshToken", {"refreshToken": refresh_token}, "header_auth"),
+        ("POST", "/user/refreshToken", {}, "header_auth_t2_only"),
+        ("GET",  "/user/refreshToken", None, "header_auth_t2_only"),
+        ("POST", "/user/refresh",      {"refreshToken": refresh_token}, "header_auth"),
+        ("POST", "/token/refresh",     {"refreshToken": refresh_token}, "header_auth"),
+        ("POST", "/user/refreshToken", {}, "form_t2"),
+    ]
+    for method, path, body, mode in attempts:
+        url = f"{BASE_URL}{path}"
+        headers = {}
+        params = None
+        data_body = None
+        try:
+            if mode == "header_auth":
+                headers["auth"] = f"Bearer {TOKEN}"
+                data_body = body
+            elif mode == "header_auth_t2_only":
+                headers["auth"] = f"Bearer {refresh_token}"
+            elif mode == "form_t2":
+                data_body = {"refreshToken": refresh_token}
+            if data_body is not None:
+                headers["Content-Type"] = "application/x-www-form-urlencoded"
+
+            if method == "GET":
+                r = requests.get(url, headers=headers, params=params, verify=False, timeout=10)
+            else:
+                r = requests.post(url, headers=headers, data=data_body, verify=False, timeout=10)
+
+            j = r.json() if r.text else {}
+            new_tok = (
+                (j.get("data") or {}).get("tokenString")
+                or (j.get("data") or {}).get("token")
+                or j.get("tokenString")
+                or j.get("token") or ""
+            )
+            if new_tok and new_tok != refresh_token:
+                exp = _jwt_exp(new_tok)
+                exp_str = datetime.fromtimestamp(exp).strftime("%Y-%m-%d %H:%M") if exp else "未知"
+                log.info("✓ Refresh 成功 (%s %s)，新 token 到期：%s", method, path, exp_str)
+                return new_tok
+        except Exception:
+            continue
+    log.warning("✗ 所有 refresh 端點都失敗（tokenString2 可能也過期或端點未知）")
+    return None
+
+
+def _ensure_valid_token() -> bool:
+    """
+    確認當前 TOKEN 有效。若過期：
+      1. 先試 refresh token 換新 access token（免驗證碼，最佳）
+      2. 再退而求其次試自動登入（會被驗證碼擋住，多半失敗）
+      3. 都失敗就回 False，由 caller 通知 user 手動更新 .env.dev
+    """
+    global TOKEN, Z3A_PHONE, Z3A_PASSWORD, Z3A_REFRESH_TOKEN
+
+    # 從 .env.dev 補齊環境變數
+    env = _load_env_file()
+    Z3A_PHONE         = Z3A_PHONE         or env.get("Z3A_PHONE",         "")
+    Z3A_PASSWORD      = Z3A_PASSWORD      or env.get("Z3A_PASSWORD",      "")
+    Z3A_REFRESH_TOKEN = Z3A_REFRESH_TOKEN or env.get("Z3A_REFRESH_TOKEN", "")
+    if env.get("Z3A_TOKEN") and (TOKEN.startswith("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJQaG9uZU51bWJlciI6IjEzNTg0ODA5MzUzIiwiZXhwIjoxNzc4")
+                                  or not TOKEN):
+        TOKEN = env["Z3A_TOKEN"]
+
+    exp = _jwt_exp(TOKEN)
+    now = time.time()
+    if exp and now < exp - 3600:   # 提前 1 小時換，避免邊緣 case
+        exp_dt = datetime.fromtimestamp(exp).strftime("%Y-%m-%d %H:%M")
+        log.info("Token 有效，到期：%s", exp_dt)
+        return True
+
+    # 過期 → 試 refresh token 換新
+    log.warning("⚠ access token 已過期或即將過期")
+    if Z3A_REFRESH_TOKEN:
+        rexp = _jwt_exp(Z3A_REFRESH_TOKEN)
+        if rexp and now > rexp:
+            log.warning("⚠ refresh token 也過期（exp=%s），跳過 refresh",
+                        datetime.fromtimestamp(rexp).strftime("%Y-%m-%d"))
+        else:
+            log.info("→ 嘗試用 refresh token 換新 access token…")
+            new_tok = _refresh_with_token2(Z3A_REFRESH_TOKEN)
+            if new_tok:
+                TOKEN = new_tok
+                return True
+
+    # 最後一招：自動登入（會被驗證碼擋）
+    log.info("→ 嘗試用帳密自動登入（雲端強制驗證碼，多半失敗）…")
+    new_tok = _login_with_phone(Z3A_PHONE, Z3A_PASSWORD)
+    if new_tok:
+        TOKEN = new_tok
+        return True
+
+    log.error("✗ 所有取得 token 的方式都失敗。")
+    log.error("  請手動更新 .env.dev 的 Z3A_TOKEN：")
+    log.error("    1. 啟雲物聯 App 重新登入一次")
+    log.error("    2. Fiddler 抓 POST /user/login 回應，取 data.tokenString")
+    log.error("    3. 貼到 Z3A_TOKEN= 後重試")
+    return False
 
 
 def _headers() -> dict:
@@ -466,14 +641,10 @@ def main():
     log.info("目標 CSV：%s", CSV_PATH)
     log.info("═" * 60)
 
-    # 確認 Token 有效期
-    exp = _jwt_exp(TOKEN)
-    if exp and time.time() > exp:
-        log.error("⚠ Token 已過期！請更新 TOKEN 後重試。")
+    # 確認 Token 有效期（過期會自動用 PHONE/PASSWORD 重新登入）
+    if not _ensure_valid_token():
+        log.error("無法取得有效 token，中止。")
         sys.exit(1)
-    elif exp:
-        exp_dt = datetime.fromtimestamp(exp).strftime("%Y-%m-%d %H:%M")
-        log.info("Token 到期：%s", exp_dt)
 
     # 取得 DeviceType 對照
     device_types = fetch_device_types()
@@ -509,7 +680,6 @@ def main():
                     dt = parse_z3a_time(p["time"])
                     if dt and p["value"] is not None:
                         i_raw_dict[dt] = float(p["value"])
-
                 # 電壓對照表（時間 → V）
                 v_dict: dict = {}
                 for p in v_series:
@@ -522,17 +692,17 @@ def main():
                     raw_i = i_raw_dict.get(dt, 0.0)
                     all_panel_raw[device_id].append((
                         dt,
-                        v_dict.get(dt, 0.0),    # 電壓 V
-                        raw_i / 1_000_000,       # 電流 mA
-                        raw_i / CURRENT_DIV,     # 電流 A
+                        v_dict.get(dt, 0.0),
+                        raw_i / 1_000_000,
+                        raw_i / CURRENT_DIV,
                     ))
-                log.info("    %-20s → %-25s（%d 筆）",
+                log.info("    %-20s -> %-25s (%d 筆)",
                          device_id, panel_id, len(all_ts))
 
         log.info("═" * 60)
         out_dir = (Path(__file__).parent / "z3a_pipeline_output"
                    / f"{start_date}_{end_date}")
-        log.info("儲存原始 CSV → %s", out_dir)
+        log.info("儲存原始 CSV -> %s", out_dir)
         _save_raw_csvs(all_panel_raw, out_dir)
 
         _run_step2(out_dir)
@@ -540,14 +710,13 @@ def main():
         _run_step5_combine(complete_csv, dry_run=args.dry_run)
 
         log.info("═" * 60)
-        log.info("Pipeline 完成！日期範圍：%s → %s", start_date, end_date)
+        log.info("Pipeline 完成！日期範圍：%s -> %s", start_date, end_date)
         return
 
-    # ── 一般模式（直接合併，不跑 pipeline）──────────────────────────────────
-    # 逐段、逐裝置抓取
+    # ── 一般模式（不跑 pipeline，直接合併 build_panel_df 的輸出）──────────
     all_new_dfs = []
     for chunk_start, chunk_end in chunks:
-        log.info("── 區段 %s → %s ──", chunk_start, chunk_end)
+        log.info("── 區段 %s -> %s ──", chunk_start, chunk_end)
         for device_id, meta in PANEL_MAP.items():
             dtype = device_types.get(device_id, "2")
             df = build_panel_df(device_id, dtype, chunk_start, chunk_end)
@@ -555,20 +724,19 @@ def main():
                 all_new_dfs.append(df)
 
     if not all_new_dfs:
-        log.error("沒有抓到任何資料，請確認 Token 是否有效。")
+        log.error("沒有抓到任何資料，請確認 Token 是否有效或時段是否正確。")
         sys.exit(1)
 
     new_df = pd.concat(all_new_dfs, ignore_index=True)
-    log.info("新抓取資料：%d 筆（%d 台裝置）", len(new_df), len(all_new_dfs))
+    log.info("新抓取資料：%d 筆 (%d 台裝置)", len(new_df), len(all_new_dfs))
 
     if args.dry_run:
         log.info("[DRY RUN] 不寫入 CSV，印出前 5 筆：")
         print(new_df.head().to_string())
         return
 
-    # 讀取現有 CSV
     if CSV_PATH.exists():
-        log.info("讀取現有 CSV（%s）…", CSV_PATH)
+        log.info("讀取現有 CSV (%s) …", CSV_PATH)
         try:
             existing = pd.read_csv(CSV_PATH, dtype=str, low_memory=False)
             log.info("  現有資料：%d 筆", len(existing))
@@ -579,36 +747,28 @@ def main():
         log.info("CSV 不存在，建立新檔案")
         existing = pd.DataFrame()
 
-    # 合併：新資料轉 str 後 concat，再去重
     new_df_str = new_df.astype(str).replace("nan", "").replace("<NA>", "")
     combined = pd.concat([existing, new_df_str], ignore_index=True)
 
-    # 去重：以 (timestamp, panel_id) 為 key，保留最新（後面的）
     before = len(combined)
-    combined = combined.drop_duplicates(
-        subset=["timestamp", "panel_id"], keep="last"
-    )
-    log.info("去重後：%d 筆（移除 %d 筆重複）", len(combined), before - len(combined))
+    combined = combined.drop_duplicates(subset=["timestamp", "panel_id"], keep="last")
+    log.info("去重後：%d 筆 (移除 %d 筆重複)", len(combined), before - len(combined))
 
-    # 排序
     combined["_ts_sort"] = pd.to_datetime(combined["timestamp"], format="mixed", errors="coerce")
     combined = combined.sort_values(["_ts_sort", "panel_id"]).drop(columns=["_ts_sort"])
 
-    # 備份原始檔案
-    backup_path = CSV_PATH.with_suffix(f".bak.{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
     if CSV_PATH.exists():
         import shutil
+        backup_path = CSV_PATH.with_suffix(f".bak.{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
         shutil.copy2(CSV_PATH, backup_path)
         log.info("原始檔案備份至：%s", backup_path)
 
-    # 寫入
     combined.to_csv(CSV_PATH, index=False, encoding="utf-8-sig")
-    log.info("✓ 已寫入 %s（共 %d 筆）", CSV_PATH, len(combined))
+    log.info("✓ 已寫入 %s (共 %d 筆)", CSV_PATH, len(combined))
     log.info("═" * 60)
-    log.info("完成！新增資料：%d 筆，覆蓋日期範圍：%s → %s",
+    log.info("完成！新增資料：%d 筆，覆蓋日期範圍：%s -> %s",
              len(new_df), start_date, end_date)
 
-    # 輸出摘要
     panel_counts = new_df.groupby("panel_id").size().sort_index()
     log.info("\n各面板新增筆數：")
     for pid, cnt in panel_counts.items():
