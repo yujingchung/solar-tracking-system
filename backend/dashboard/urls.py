@@ -11,6 +11,8 @@ from .fixed_panel_api import (
     FixedPanelPanelTrendView,
     FixedPanelRawCSVView,
     FixedPanelStatusView,
+    FixedPanelKpiSummaryView,
+    FixedPanelReloadView,
 )
 from .z3a_api import (
     Z3ADevicesView,
@@ -35,6 +37,8 @@ urlpatterns = [
     path('fixed-panels/panel-trend/',  FixedPanelPanelTrendView.as_view(),  name='fp-panel-trend'),
     path('fixed-panels/raw-csv/',      FixedPanelRawCSVView.as_view(),      name='fp-raw-csv'),
     path('fixed-panels/status/',       FixedPanelStatusView.as_view(),      name='fp-status'),
+    path('fixed-panels/kpi-summary/',  FixedPanelKpiSummaryView.as_view(),  name='fp-kpi-summary'),
+    path('fixed-panels/reload/',       FixedPanelReloadView.as_view(),      name='fp-reload'),
     # Z3A IoT 採集裝置
     path('z3a/devices/',  Z3ADevicesView.as_view(),  name='z3a-devices'),
     path('z3a/history/',  Z3AHistoryView.as_view(),  name='z3a-history'),

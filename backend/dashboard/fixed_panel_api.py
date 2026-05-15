@@ -1,15 +1,16 @@
 """
 fixed_panel_api.py  -  固定式面板歷史數據 API（pandas in-memory cache）
 """
-import os, threading, gzip as _gzip, io, shutil
+import os
+import threading
 import pandas as pd
-from django.http import JsonResponse, HttpResponse, FileResponse, StreamingHttpResponse
+from django.http import JsonResponse, FileResponse
 from django.views import View
 from django.conf import settings
 
-_GZ_CACHE_PATH = "/tmp/fp_data_cache.csv.gz"   # 磁碟上的 gzip 快取（節省記憶體）
 
 _df = None
+_df_mtime = 0          # 上次載入時的檔案 mtime，用於偵測檔案是否被外部更新
 _df_lock = threading.Lock()
 _load_error = None
 
@@ -19,19 +20,34 @@ def _get_data_path():
                    "/usr/src/app/data/combined_solar_data_20250301_20260406_processed.csv")
 
 
+def invalidate_df_cache():
+    """手動清除快取，下次呼叫 get_df() 會重新從 CSV 載入。"""
+    global _df, _df_mtime
+    with _df_lock:
+        _df = None
+        _df_mtime = 0
+
+
 def get_df():
-    global _df, _load_error
+    global _df, _df_mtime, _load_error
+    path = _get_data_path()
+    # mtime 自動重載：若 CSV 比快取版本新，丟掉快取重讀
+    if _df is not None and os.path.exists(path):
+        try:
+            current_mtime = os.path.getmtime(path)
+            if current_mtime > _df_mtime:
+                _df = None   # 觸發重載
+        except OSError:
+            pass
     if _df is not None:
         return _df
     with _df_lock:
         if _df is not None:
             return _df
-        path = _get_data_path()
         if not os.path.exists(path):
             _load_error = f"找不到資料檔案: {path}"
             return None
         try:
-            # 讀取所有可用欄位，illumination 為選填（舊版 CSV 可能無此欄）
             available_cols = pd.read_csv(path, nrows=0).columns.tolist()
             base_cols = [
                 "timestamp", "date", "tilt_angle", "azimuth_angle",
@@ -48,8 +64,6 @@ def get_df():
             if "illumination" in usecols:
                 dtype_map["illumination"] = "float32"
             df = pd.read_csv(path, usecols=usecols, dtype=dtype_map)
-            # 追日面板的 azimuth_angle 為字串（「追日」/「tracking」）
-            # 轉成數值，無法轉換的變 NaN，再過濾掉 → 只留固定式面板
             df["azimuth_angle"] = pd.to_numeric(df["azimuth_angle"], errors="coerce")
             df["tilt_angle"]    = pd.to_numeric(df["tilt_angle"],    errors="coerce")
             df = df.dropna(subset=["azimuth_angle", "tilt_angle"])
@@ -64,6 +78,10 @@ def get_df():
             df["azimuth_i"] = df["azimuth_angle"].astype(int)
             df["group"]     = df["tilt_i"].astype(str) + "°/" + df["azimuth_i"].astype(str) + "°"
             _df = df
+            try:
+                _df_mtime = os.path.getmtime(path)
+            except OSError:
+                _df_mtime = 0
             _load_error = None
         except Exception as exc:
             _load_error = str(exc)
@@ -184,13 +202,9 @@ class FixedPanelPanelListView(View):
         return JsonResponse({"panels": panels})
 
 
-# ── Single-day hourly curve — supports panel_id OR tilt+azimuth ──────
+# ── Single-day hourly curve ─────────────────────────────────────────
 class FixedPanelDayCurveView(View):
-    """
-    GET /api/fixed-panels/day-curve/?date=YYYY-MM-DD
-        [&panel_id=Panel_20_180_A]   single panel
-        [&tilt=20&azimuth=180]       whole group (A+B)
-    """
+    """GET /api/fixed-panels/day-curve/?date=YYYY-MM-DD [&panel_id=...] [&tilt=&azimuth=]"""
     def get(self, request):
         df = get_df()
         if df is None:
@@ -236,12 +250,7 @@ class FixedPanelDayCurveView(View):
 
 # ── Panel-group trend: A vs B for a tilt+azimuth combo ───────────────
 class FixedPanelPanelTrendView(View):
-    """
-    GET /api/fixed-panels/panel-trend/
-        ?tilt=20&azimuth=180          returns both A and B panels
-        [&month=2025-06]              optional month filter
-        [&panel_id=Panel_20_180_A]    single panel fallback
-    """
+    """GET /api/fixed-panels/panel-trend/?tilt=20&azimuth=180 [&month=YYYY-MM] [&panel_id=...]"""
     def get(self, request):
         df = get_df()
         if df is None:
@@ -265,7 +274,6 @@ class FixedPanelPanelTrendView(View):
         if filtered.empty:
             return JsonResponse({"labels": [], "datasets": []})
 
-        # daily avg per panel_id
         daily = (
             filtered
             .groupby(["date_str", "panel_id"])
@@ -289,20 +297,13 @@ class FixedPanelPanelTrendView(View):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 固定式面板 CSV 下載端點（供前端自動載入，無需手動上傳）
+# 固定式面板 CSV 下載端點
 # ─────────────────────────────────────────────────────────────────────────────
 class FixedPanelRawCSVView(View):
-    """
-    GET /api/fixed-panels/raw-csv/
-    回傳 DataFrame 中前端所需欄位的 CSV，gzip 壓縮後回傳並快取。
-    前端僅需 fetch 一次，之後由瀏覽器快取（ETag + Cache-Control）。
-    """
     def get(self, request):
         path = _get_data_path()
         if not os.path.exists(path):
             return JsonResponse({"error": "找不到資料檔案"}, status=404)
-
-        # 直接串流原始 CSV，不做 gz 快取（避免截斷問題）
         resp = FileResponse(
             open(path, "rb"),
             content_type="text/csv; charset=utf-8",
@@ -313,7 +314,188 @@ class FixedPanelRawCSVView(View):
         return resp
 
 
-# ── 診斷端點：看後端載入狀態與錯誤 ──────────────────────────────────────────
+# ── 快取重載端點（scheduled task 抓完新資料後呼叫）─────────────────
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+
+@method_decorator(csrf_exempt, name='dispatch')
+class FixedPanelReloadView(View):
+    """POST /api/fixed-panels/reload/ — 強制丟掉記憶體 cache，下次查詢會重讀 CSV"""
+    def post(self, request):
+        invalidate_df_cache()
+        df = get_df()
+        if df is None:
+            return JsonResponse({"success": False, "error": _load_error or "資料未載入"}, status=500)
+        return JsonResponse({
+            "success":  True,
+            "df_rows":  int(len(df)),
+            "date_range": {
+                "start": df["date"].min().strftime("%Y-%m-%d"),
+                "end":   df["date"].max().strftime("%Y-%m-%d"),
+            },
+            "reloaded_at": _now_str(),
+        })
+
+    # 也允許 GET 方便手動測試
+    def get(self, request):
+        return self.post(request)
+
+
+def _now_str():
+    from datetime import datetime
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+# ── 診斷端點 ─────────────────────────────────────────────────────────
 class FixedPanelStatusView(View):
     def get(self, request):
-        import o
+        path = _get_data_path()
+        df = get_df()
+        return JsonResponse({
+            "data_path":     path,
+            "file_exists":   os.path.exists(path),
+            "file_size_mb":  round(os.path.getsize(path) / 1024 / 1024, 2) if os.path.exists(path) else None,
+            "df_loaded":     df is not None,
+            "df_rows":       int(len(df)) if df is not None else 0,
+            "df_columns":    list(df.columns) if df is not None else [],
+            "load_error":    _load_error,
+        })
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 固定式面板研究 KPI 摘要 endpoint — 給總覽頁 + 研究頁的 KPI 卡使用
+# 由後端 pandas 直接算累計 kWh、各組合 / 方位 / 傾角 / 季節能量等
+# ─────────────────────────────────────────────────────────────────────────────
+class FixedPanelKpiSummaryView(View):
+    """
+    GET /api/fixed-panels/kpi-summary/[?season=spring|summer|fall|winter|all]
+
+    回傳：
+      total_energy_kwh, total_panels, date_range
+      per_group:  [{group, tilt, azimuth, energy_kwh, rank, panels_n}, ...]
+      best_group / worst_group / diff_pct
+      by_tilt / by_azimuth / by_season
+      ab_consistency: [{group, panel_a, panel_b, energy_a, energy_b, diff_pct}, ...]
+    """
+    SEASON_MONTHS = {
+        "spring": (3, 4, 5),
+        "summer": (6, 7, 8),
+        "fall":   (9, 10, 11),
+        "winter": (12, 1, 2),
+    }
+
+    def get(self, request):
+        df = get_df()
+        if df is None:
+            return _err(_load_error or "資料未載入", 404)
+
+        season = (request.GET.get("season") or "all").lower()
+        if season != "all" and season in self.SEASON_MONTHS:
+            months = self.SEASON_MONTHS[season]
+            df_s = df[df["date"].dt.month.isin(months)]
+        else:
+            df_s = df
+
+        if df_s.empty:
+            return JsonResponse({"error": "filtered_empty"}, status=200)
+
+        # 每片面板每天的最大 daily_energy_Wh = 該天該片的累計能量
+        day_energy = (
+            df_s.groupby(["panel_id", "date_str", "tilt_i", "azimuth_i", "group"])
+                ["daily_energy_Wh"].max().reset_index()
+        )
+        total_wh = float(day_energy["daily_energy_Wh"].sum())
+        total_kwh = round(total_wh / 1000, 2)
+        total_panels = int(df_s["panel_id"].nunique())
+
+        grp = (day_energy.groupby(["group", "tilt_i", "azimuth_i"])
+               ["daily_energy_Wh"].sum().reset_index()
+               .rename(columns={"daily_energy_Wh": "energy_wh"}))
+        grp["energy_kwh"] = (grp["energy_wh"] / 1000).round(2)
+        grp = grp.sort_values("energy_kwh", ascending=False).reset_index(drop=True)
+        grp["rank"] = grp.index + 1
+
+        panels_per_group = (
+            day_energy.groupby("group")["panel_id"].nunique().to_dict()
+        )
+
+        per_group = [{
+            "group":      row["group"],
+            "tilt":       int(row["tilt_i"]),
+            "azimuth":    int(row["azimuth_i"]),
+            "energy_kwh": float(row["energy_kwh"]),
+            "rank":       int(row["rank"]),
+            "panels_n":   int(panels_per_group.get(row["group"], 0)),
+        } for _, row in grp.iterrows()]
+
+        best  = per_group[0]  if per_group else None
+        worst = per_group[-1] if per_group else None
+        diff_pct = None
+        if best and worst and worst["energy_kwh"] > 0:
+            diff_pct = round((best["energy_kwh"] - worst["energy_kwh"]) / worst["energy_kwh"] * 100, 1)
+
+        by_tilt = (day_energy.groupby("tilt_i")["daily_energy_Wh"].sum() / 1000).round(2)
+        by_tilt = [{"tilt": int(k), "energy_kwh": float(v)} for k, v in by_tilt.items()]
+        by_tilt.sort(key=lambda r: r["tilt"])
+
+        by_azi = (day_energy.groupby("azimuth_i")["daily_energy_Wh"].sum() / 1000).round(2)
+        by_azi = [{"azimuth": int(k), "energy_kwh": float(v)} for k, v in by_azi.items()]
+        by_azi.sort(key=lambda r: r["azimuth"])
+
+        by_season = []
+        if season == "all":
+            for sname, months in self.SEASON_MONTHS.items():
+                sdf = df[df["date"].dt.month.isin(months)]
+                if sdf.empty:
+                    continue
+                s_day = (sdf.groupby(["panel_id", "date_str"])["daily_energy_Wh"]
+                          .max().reset_index())
+                e = float(s_day["daily_energy_Wh"].sum()) / 1000
+                by_season.append({"season": sname, "energy_kwh": round(e, 2)})
+
+        # A vs B 一致性檢定
+        ab = []
+        panel_sums = (day_energy.groupby(["panel_id", "group", "tilt_i", "azimuth_i"])
+                      ["daily_energy_Wh"].sum().reset_index())
+        panel_sums["energy_kwh"] = (panel_sums["daily_energy_Wh"] / 1000).round(2)
+        for group_name, gdf in panel_sums.groupby("group"):
+            panels = gdf.sort_values("panel_id")
+            if len(panels) < 2:
+                continue
+            pa = panels[panels["panel_id"].astype(str).str.endswith("_A")]
+            pb = panels[panels["panel_id"].astype(str).str.endswith("_B")]
+            if pa.empty or pb.empty:
+                continue
+            ea = float(pa.iloc[0]["energy_kwh"])
+            eb = float(pb.iloc[0]["energy_kwh"])
+            mn = min(ea, eb)
+            diff = round(abs(ea - eb) / mn * 100, 2) if mn > 0 else 0
+            ab.append({
+                "group":     group_name,
+                "tilt":      int(panels.iloc[0]["tilt_i"]),
+                "azimuth":   int(panels.iloc[0]["azimuth_i"]),
+                "panel_a":   str(pa.iloc[0]["panel_id"]),
+                "panel_b":   str(pb.iloc[0]["panel_id"]),
+                "energy_a":  ea,
+                "energy_b":  eb,
+                "diff_pct":  diff,
+            })
+        ab.sort(key=lambda r: (r["tilt"], r["azimuth"]))
+
+        return JsonResponse({
+            "season":           season,
+            "total_energy_kwh": total_kwh,
+            "total_panels":     total_panels,
+            "date_range": {
+                "start": df_s["date"].min().strftime("%Y-%m-%d"),
+                "end":   df_s["date"].max().strftime("%Y-%m-%d"),
+            },
+            "per_group":      per_group,
+            "best_group":     best,
+            "worst_group":    worst,
+            "diff_pct":       diff_pct,
+            "by_tilt":        by_tilt,
+            "by_azimuth":     by_azi,
+            "by_season":      by_season,
+            "ab_consistency": ab,
+        })
