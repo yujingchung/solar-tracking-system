@@ -154,6 +154,82 @@
 <div id="tab-sys-3" class="tab-pane"></div>
 <div id="tab-sys-4" class="tab-pane"></div>
 
+<!-- 固定式面板（已整合至 CSV 分析頁籤）-->
+<div id="tab-fixed-panels" class="tab-pane" style="display:none">
+    <div class="card mb-3 p-3">
+        <div class="d-flex flex-wrap gap-3 align-items-center">
+            <div class="d-flex align-items-center gap-2">
+                <label class="fw-bold" style="font-size:.85rem;white-space:nowrap">月份：</label>
+                <select id="fp-month-sel" class="form-select form-select-sm" style="width:140px" onchange="fpOnMonthChange()"><option value="">載入中…</option></select>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <label class="fw-bold" style="font-size:.85rem;white-space:nowrap">每日趨勢篩選：</label>
+                <select id="fp-tilt-sel" class="form-select form-select-sm" style="width:90px" onchange="fpLoadDaily()">
+                    <option value="">全部傾角</option>
+                    <option value="10">10°</option><option value="15">15°</option><option value="20">20°</option><option value="30">30°</option>
+                </select>
+                <select id="fp-azi-sel" class="form-select form-select-sm" style="width:90px" onchange="fpLoadDaily()">
+                    <option value="">全部方位</option>
+                    <option value="160">160°</option><option value="180">180°</option><option value="200">200°</option>
+                </select>
+            </div>
+            <span class="ts-label ms-auto" id="fp-status">--</span>
+        </div>
+    </div>
+    <div class="row g-3 mb-3">
+        <div class="col-lg-7">
+            <div class="card"><div class="card-hdr"><h6><i class="fas fa-chart-line" style="color:#059669"></i>月均小時功率曲線（依組別）</h6><span class="ts-label" id="fp-curve-month-label">--</span></div>
+            <div class="p-3"><div style="height:280px;position:relative"><canvas id="fp-curve-chart"></canvas></div></div></div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card"><div class="card-hdr"><h6><i class="fas fa-chart-bar" style="color:#059669"></i>每日平均功率</h6><span class="ts-label" id="fp-daily-month-label">--</span></div>
+            <div class="p-3"><div style="height:280px;position:relative"><canvas id="fp-daily-chart"></canvas></div></div></div>
+        </div>
+    </div>
+    <div class="card mb-3">
+        <div class="card-hdr"><h6><i class="fas fa-table" style="color:#059669"></i>月均功率統計（W）</h6><span class="ts-label">各傾角 × 方位角組合</span></div>
+        <div style="overflow-x:auto;max-height:320px">
+            <table class="data-table" id="fp-monthly-table">
+                <thead><tr><th>月份</th><th colspan="12">各面板組平均功率 (W)</th></tr></thead>
+                <tbody id="fp-monthly-body"><tr><td colspan="13" class="text-center text-muted py-4">載入中…</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+    <!-- 單日詳細 -->
+    <div class="card mb-3">
+        <div class="card-hdr">
+            <h6><i class="fas fa-calendar-day" style="color:#7c3aed"></i>單日詳細 — 逐小時功率（每片面板）</h6>
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <input type="date" id="fp-day-input" class="form-control form-control-sm" style="width:150px" onchange="fpLoadDayCurve()">
+                <select id="fp-day-tilt-sel" class="form-select form-select-sm" style="width:90px" onchange="fpLoadDayCurve()"><option value="">傾角…</option></select>
+                <select id="fp-day-azi-sel" class="form-select form-select-sm" style="width:90px" onchange="fpLoadDayCurve()"><option value="">方位角…</option></select>
+                <span class="ts-label" id="fp-day-status">--</span>
+            </div>
+        </div>
+        <div class="p-3"><div style="height:300px;position:relative"><canvas id="fp-day-chart"></canvas></div></div>
+        <div style="overflow-x:auto;padding:0 16px 16px">
+            <table class="data-table">
+                <thead><tr><th>面板</th><th>傾角</th><th>方位角</th><th>當日發電量 (Wh)</th></tr></thead>
+                <tbody id="fp-day-energy-body"><tr><td colspan="4" class="text-center text-muted py-3">請選擇日期</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+    <!-- 面板組比較 (A vs B) -->
+    <div class="card">
+        <div class="card-hdr">
+            <h6><i class="fas fa-wave-square" style="color:#7c3aed"></i>面板組比較 (A vs B)</h6>
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <select id="fp-trend-tilt-sel" class="form-select form-select-sm" style="width:90px" onchange="fpLoadPanelTrend()"><option value="">傾角…</option></select>
+                <select id="fp-trend-azi-sel" class="form-select form-select-sm" style="width:90px" onchange="fpLoadPanelTrend()"><option value="">方位角…</option></select>
+                <select id="fp-trend-month-sel" class="form-select form-select-sm" style="width:140px" onchange="fpLoadPanelTrend()"><option value="">全部月份</option></select>
+                <span class="ts-label" id="fp-trend-status">--</span>
+            </div>
+        </div>
+        <div class="p-3"><div style="height:260px;position:relative"><canvas id="fp-trend-chart"></canvas></div></div>
+    </div>
+</div>
+
+<!-- 發電比較 -->
 <div id="tab-compare" class="tab-pane">
     <div class="row g-3 mb-3">
         <div class="col-12"><div class="card"><div class="card-hdr"><h6><i class="fas fa-chart-line" style="color:#8b5cf6"></i>功率趨勢比較（最近 30 筆）</h6><span class="ts-label" id="compare-update-time">--</span></div><div class="p-3"><div style="height:280px;position:relative"><canvas id="compare-line-chart"></canvas></div></div></div></div>
@@ -163,6 +239,7 @@
         <div class="col-lg-7"><div class="card h-100"><div class="card-hdr"><h6><i class="fas fa-table-cells" style="color:#8b5cf6"></i>即時數據一覽</h6></div><div style="overflow:auto;max-height:320px"><table class="data-table"><thead><tr><th>系統</th><th>功率(W)</th><th>γ 南北(°)</th><th>ζ 東西(°)</th><th>狀態</th></tr></thead><tbody id="compare-table-body"><tr><td colspan="5" class="text-center py-4 text-muted">載入中…</td></tr></tbody></table></div></div></div>
     </div>
 </div>
+
 
 <!-- CSV 分析 -->
 <div id="tab-csv-analysis" class="tab-pane">
@@ -493,6 +570,7 @@ function switchTab(tabId){
     if(tabId==='overview')refreshOverview();
     else if(tabId.startsWith('sys-'))loadSysData(parseInt(tabId.split('-')[1]));
     else if(tabId==='compare')refreshCompare();
+    else if(tabId==='fixed-panels'&&fpAvailMonths.length===0)fpInit();
     else if(tabId==='csv-analysis'&&!csvDf.length)csvAutoLoad();
     else if(tabId==='z3a')z3aInit();
 }
@@ -622,6 +700,164 @@ document.addEventListener('DOMContentLoaded',()=>{
     },REFRESH_MS);
 });
 
+/* ═══ 固定式面板 ═══ */
+const FP_COLORS={'10°/160°':'#1d4ed8','10°/180°':'#3b82f6','10°/200°':'#93c5fd','15°/160°':'#065f46','15°/180°':'#10b981','15°/200°':'#6ee7b7','20°/160°':'#92400e','20°/180°':'#f59e0b','20°/200°':'#fcd34d','30°/160°':'#7f1d1d','30°/180°':'#ef4444','30°/200°':'#fca5a5'};
+let fpCurveChart=null,fpDailyChart=null,fpDayChart=null,fpTrendChart=null;
+let fpAvailMonths=[],fpSummaryData=null,fpPanelList=[];
+function fpGC(g){return FP_COLORS[g]||'#64748b';}
+function fpDash(pid){return(typeof pid==='string'&&pid.endsWith('_B'))?[5,3]:[];}
+function h2lbl(h){const hh=Math.floor(h),mm=Math.round((h-hh)*60);return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');}
+
+async function fpInit(){
+    try{
+        const resp=await fetch(`${API}/fixed-panels/summary/`);
+        if(!resp.ok)throw new Error();
+        const d=await resp.json();
+        fpSummaryData=d;fpAvailMonths=d.available_months||[];
+        const sel=document.getElementById('fp-month-sel');
+        if(sel){sel.innerHTML=fpAvailMonths.map(m=>`<option value="${m}">${m}</option>`).join('');if(fpAvailMonths.length)sel.value=fpAvailMonths[fpAvailMonths.length-1];}
+        setEl('fp-status',`資料範圍 ${d.date_range?.start} ~ ${d.date_range?.end}，共 ${(d.total_records||0).toLocaleString()} 筆`);
+        fpLoadAll();
+        fpInitPanels(d);
+    }catch(e){setEl('fp-status','固定式面板資料未載入（確認 data/ 目錄已掛載）');}
+}
+async function fpInitPanels(summaryData){
+    try{
+        const groups=summaryData?.panel_groups||[];
+        const tilts=[...new Set(groups.map(g=>g.tilt))].sort((a,b)=>a-b);
+        const azis=[...new Set(groups.map(g=>g.azimuth))].sort((a,b)=>a-b);
+        const tiltOpts=tilts.map(t=>`<option value="${t}">${t}°</option>`).join('');
+        const aziOpts=azis.map(a=>`<option value="${a}">${a}°</option>`).join('');
+        ['fp-day-tilt-sel','fp-trend-tilt-sel'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='<option value="">傾角…</option>'+tiltOpts;});
+        ['fp-day-azi-sel','fp-trend-azi-sel'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='<option value="">方位角…</option>'+aziOpts;});
+        if(tilts.length&&azis.length){
+            const dtilt=document.getElementById('fp-day-tilt-sel'),dazi=document.getElementById('fp-day-azi-sel');
+            if(dtilt)dtilt.value=tilts[0];if(dazi)dazi.value=azis[0];
+            const ttilt=document.getElementById('fp-trend-tilt-sel'),tazi=document.getElementById('fp-trend-azi-sel');
+            if(ttilt)ttilt.value=tilts[0];if(tazi)tazi.value=azis[0];
+        }
+        const tm=document.getElementById('fp-trend-month-sel');
+        if(tm&&fpAvailMonths.length)tm.innerHTML='<option value="">全部月份</option>'+fpAvailMonths.map(m=>`<option value="${m}">${m}</option>`).join('');
+        const di=document.getElementById('fp-day-input');
+        if(di&&summaryData?.date_range?.end){di.value=summaryData.date_range.end;fpLoadDayCurve();}
+        fpLoadPanelTrend();
+    }catch(e){console.error('fpInitPanels',e);}
+}
+function fpOnMonthChange(){fpLoadAll();}
+function fpLoadAll(){fpLoadCurve();fpLoadDaily();fpLoadMonthly();}
+async function fpLoadCurve(){
+    const month=document.getElementById('fp-month-sel')?.value||'';
+    setEl('fp-curve-month-label',month||'全部');
+    try{
+        const resp=await fetch(`${API}/fixed-panels/power-curve/?month=${encodeURIComponent(month)}`);
+        const d=await resp.json();
+        const labels=(d.labels||[]).map(h2lbl);
+        const datasets=(d.datasets||[]).map(ds=>({label:ds.label,data:ds.data,borderColor:FP_COLORS[ds.label]||'#64748b',backgroundColor:'transparent',tension:.35,pointRadius:1,borderWidth:2}));
+        const ctx=document.getElementById('fp-curve-chart');if(!ctx)return;
+        if(fpCurveChart)fpCurveChart.destroy();
+        fpCurveChart=new Chart(ctx,{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{usePointStyle:true,boxWidth:8,font:{size:10}}}},scales:{x:{title:{display:true,text:'時刻',font:{size:11}},grid:{display:false}},y:{title:{display:true,text:'平均功率 (W)',font:{size:11}},beginAtZero:true,grid:{color:'#f1f5f9'}}}}});
+    }catch(e){console.error('fpLoadCurve',e);}
+}
+async function fpLoadDaily(){
+    const month=document.getElementById('fp-month-sel')?.value||'';
+    const tilt=document.getElementById('fp-tilt-sel')?.value||'';
+    const azi=document.getElementById('fp-azi-sel')?.value||'';
+    setEl('fp-daily-month-label',month||'全部');
+    let url=`${API}/fixed-panels/daily/?month=${encodeURIComponent(month)}`;
+    if(tilt)url+=`&tilt=${tilt}`;if(azi)url+=`&azimuth=${azi}`;
+    try{
+        const resp=await fetch(url);const d=await resp.json();
+        const labels=d.labels||[];
+        const datasets=(d.datasets||[]).map(ds=>({label:ds.label,data:ds.data,borderColor:FP_COLORS[ds.label]||'#64748b',backgroundColor:'transparent',tension:.3,pointRadius:1,borderWidth:2}));
+        const ctx=document.getElementById('fp-daily-chart');if(!ctx)return;
+        if(fpDailyChart)fpDailyChart.destroy();
+        fpDailyChart=new Chart(ctx,{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{usePointStyle:true,boxWidth:8,font:{size:10}}}},scales:{x:{ticks:{maxRotation:45,font:{size:9}},grid:{display:false}},y:{beginAtZero:true,grid:{color:'#f1f5f9'},title:{display:true,text:'平均功率 (W)',font:{size:11}}}}}});
+    }catch(e){console.error('fpLoadDaily',e);}
+}
+async function fpLoadMonthly(){
+    try{
+        const month=document.getElementById('fp-month-sel')?.value||'';
+        const year=month?month.split('-')[0]:'';
+        const resp=await fetch(`${API}/fixed-panels/monthly/?year=${year}`);const d=await resp.json();
+        const months=d.months||[],groups=d.groups||[],matrix=d.matrix||{};
+        const thead=document.querySelector('#fp-monthly-table thead tr'),tbody=document.getElementById('fp-monthly-body');
+        if(!thead||!tbody)return;
+        const gl=groups.map(g=>g.group);
+        thead.innerHTML=`<th>月份</th>`+gl.map(g=>`<th style="white-space:nowrap;font-size:.7rem">${g}</th>`).join('');
+        if(!months.length){tbody.innerHTML='<tr><td colspan="13" class="text-center text-muted py-4">無資料</td></tr>';return;}
+        const av=gl.flatMap(g=>months.map(m=>matrix[g]?.[m]||0)),maxVal=Math.max(...av)||1;
+        tbody.innerHTML=months.map(m=>{
+            const cells=gl.map(g=>{
+                const v=matrix[g]?.[m];if(v==null)return '<td style="color:#94a3b8">--</td>';
+                const pct=v/maxVal,alpha=(0.15+pct*0.5).toFixed(2),color=pct>0.7?'#059669':pct>0.4?'#f59e0b':'#64748b';
+                return `<td style="background:rgba(16,185,129,${alpha});font-weight:700;color:${color}">${v.toFixed(1)}</td>`;
+            }).join('');
+            return `<tr><td style="white-space:nowrap;font-weight:600">${m}</td>${cells}</tr>`;
+        }).join('');
+    }catch(e){console.error('fpLoadMonthly',e);}
+}
+
+/* 單日詳細 */
+async function fpLoadDayCurve(){
+    const date=document.getElementById('fp-day-input')?.value;
+    const tilt=document.getElementById('fp-day-tilt-sel')?.value||'';
+    const azi=document.getElementById('fp-day-azi-sel')?.value||'';
+    if(!date){setEl('fp-day-status','請選擇日期');return;}
+    setEl('fp-day-status','載入中…');
+    let url=`${API}/fixed-panels/day-curve/?date=${encodeURIComponent(date)}`;
+    if(tilt)url+=`&tilt=${tilt}`;if(azi)url+=`&azimuth=${azi}`;
+    try{
+        const resp=await fetch(url);const d=await resp.json();
+        const labels=(d.labels||[]).map(h2lbl);
+        const datasets=(d.datasets||[]).map(ds=>({label:ds.label.replace('Panel_',''),data:ds.data,borderColor:fpGC(ds.group),backgroundColor:'transparent',borderDash:fpDash(ds.label),tension:.3,pointRadius:1.5,borderWidth:1.8}));
+        const ctx=document.getElementById('fp-day-chart');if(!ctx)return;
+        if(fpDayChart)fpDayChart.destroy();
+        fpDayChart=new Chart(ctx,{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{usePointStyle:true,boxWidth:8,font:{size:9}}},tooltip:{callbacks:{title:t=>`時刻 ${t[0].label}`,label:t=>`${t.dataset.label}: ${t.raw} W`}}},scales:{x:{title:{display:true,text:'時刻',font:{size:11}},grid:{display:false},ticks:{font:{size:9}}},y:{title:{display:true,text:'功率 (W)',font:{size:11}},beginAtZero:true,grid:{color:'#f1f5f9'}}}}});
+        const tbody=document.getElementById('fp-day-energy-body');
+        const em=d.energy_wh||{};
+        const dsMap={};(d.datasets||[]).forEach(ds=>{dsMap[ds.label]={tilt:ds.tilt,azimuth:ds.azimuth,group:ds.group};});
+        const rows=Object.entries(em).sort(([a],[b])=>a.localeCompare(b)).map(([p,wh])=>{
+            const info=dsMap[p]||{tilt:'--',azimuth:'--',group:''};
+            return `<tr><td style="font-weight:600;color:${fpGC(info.group)}">${p.replace('Panel_','')}</td><td>${info.tilt}°</td><td>${info.azimuth}°</td><td class="fw-bold">${wh.toFixed(1)}</td></tr>`;
+        }).join('');
+        if(tbody)tbody.innerHTML=rows||'<tr><td colspan="4" class="text-center text-muted">無資料</td></tr>';
+        setEl('fp-day-status',`${date} · ${(d.datasets||[]).length} 片面板`);
+    }catch(e){setEl('fp-day-status','載入失敗');console.error('fpLoadDayCurve',e);}
+}
+
+/* 面板組比較 (A vs B) */
+async function fpLoadPanelTrend(){
+    const tilt=document.getElementById('fp-trend-tilt-sel')?.value||'';
+    const azi=document.getElementById('fp-trend-azi-sel')?.value||'';
+    const month=document.getElementById('fp-trend-month-sel')?.value||'';
+    if(!tilt||!azi){setEl('fp-trend-status','請選擇傾角與方位角');return;}
+    setEl('fp-trend-status','載入中…');
+    let url=`${API}/fixed-panels/panel-trend/?tilt=${tilt}&azimuth=${azi}`;
+    if(month)url+=`&month=${encodeURIComponent(month)}`;
+    try{
+        const resp=await fetch(url);const d=await resp.json();
+        const groupKey=`${tilt}°/${azi}°`;const groupColor=fpGC(groupKey);
+        const ctx=document.getElementById('fp-trend-chart');if(!ctx)return;
+        if(fpTrendChart)fpTrendChart.destroy();
+        const datasets=(d.datasets||[]).map((ds,i)=>({
+        label:`${ds.label} 功率 (W)`,
+            data:ds.power||[],
+            borderColor:groupColor,
+            backgroundColor:i===0?groupColor+'22':'transparent',
+            borderDash:i===0?[]:[5,3],
+            fill:i===0,
+            tension:.3,pointRadius:1.5,borderWidth:2
+        }));
+        fpTrendChart=new Chart(ctx,{type:'line',
+            data:{labels:d.labels||[],datasets},
+            options:{responsive:true,maintainAspectRatio:false,
+                plugins:{legend:{position:'top',labels:{usePointStyle:true,boxWidth:8,font:{size:11}}}},
+                scales:{x:{ticks:{maxRotation:45,font:{size:9}},grid:{display:false}},y:{beginAtZero:true,title:{display:true,text:'功率 (W)',font:{size:10}},grid:{color:'#f1f5f9'}}}}
+        });
+        setEl('fp-trend-status',`${groupKey} · ${(d.datasets||[]).length} 片 · ${(d.labels||[]).length} 天`);
+    }catch(e){setEl('fp-trend-status','載入失敗');console.error('fpLoadPanelTrend',e);}
+}
+
 /* ═══ CSV 分析 ═══ */
 const CSV_COLORS=['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#84cc16','#f97316','#6366f1','#14b8a6','#e11d48','#0ea5e9','#a3e635','#fb923c','#a855f7','#2dd4bf','#fbbf24','#4ade80','#60a5fa'];
 let csvDf=[],csvCurrentYear=null,csvCurrentMonth=null;
@@ -725,8 +961,8 @@ function csvParseAndProcess(text,filename){
                 _power:parseFloat(row['power_W'])||0,
                 _tilt:row['tilt_angle']!==''?parseFloat(row['tilt_angle']):null,
                 _azi:(()=>{const v=parseFloat(row['azimuth_angle']);return isNaN(v)?null:v;})(),
-                _panel:row['panel_id']||null,
                 _illum:(()=>{const v=parseFloat(row['illumination']);return isNaN(v)?null:v;})(),
+                _panel:row['panel_id']||null,
             };
         }).filter(r=>r._year!==null&&!isNaN(r._year));
         const years=[...new Set(csvDf.map(r=>r._year))].sort((a,b)=>a-b);
@@ -907,6 +1143,7 @@ function csvGeneratePanelPlot(){
     const existing=Chart.getChart(ctx);if(existing)existing.destroy();
     csvPanelChart2=new Chart(ctx,{data:{labels,datasets},
         options:{responsive:true,maintainAspectRatio:false,
+            animation:false,
             plugins:{legend:{position:'right',labels:{usePointStyle:true,boxWidth:8,font:{size:9},
                 filter:(item)=>item.text!=='Illumination (W/m²)'||hasIllum}}},
             scales:{x:{title:{display:true,text:'Time of day',font:{size:11}},grid:{display:false},
@@ -1194,4 +1431,31 @@ function z3aRenderSummary(selDevices,channel){
     tbody.innerHTML=selDevices.map((dev,i)=>{
         const color=Z3A_COLORS[i%Z3A_COLORS.length];
         let vals=[];
-        if(channel==='voltage')vals=(z3aVoltData[dev.DeviceId]||[]).map(
+        if(channel==='voltage')vals=(z3aVoltData[dev.DeviceId]||[]).map(p=>p.value).filter(v=>v!=null);
+        else if(channel==='current')vals=(z3aCurrentData[dev.DeviceId]||[]).map(p=>p.value).filter(v=>v!=null);
+        else{
+            const vl=z3aVoltData[dev.DeviceId]||[],cl=z3aCurrentData[dev.DeviceId]||[];
+            const vm={},cm={};
+            vl.forEach(p=>{vm[p.time]=p.value;});cl.forEach(p=>{cm[p.time]=p.value;});
+            vals=Object.keys(vm).filter(t=>cm[t]!=null).map(t=>vm[t]*(cm[t]/1000)).filter(v=>v!=null);
+        }
+        if(!vals.length)return`<tr><td style="color:${color};font-weight:600">${dev.DeviceId}</td><td colspan="4" class="text-muted">無資料</td></tr>`;
+        const mn=Math.min(...vals),mx=Math.max(...vals),avg=vals.reduce((a,b)=>a+b,0)/vals.length;
+        const u=channel==='voltage'?'V':channel==='current'?'mA':'W';
+        return`<tr><td style="color:${color};font-weight:600;font-size:.8rem">${dev.DeviceId}</td>
+<td>${mn.toFixed(3)} ${u}</td><td>${mx.toFixed(3)} ${u}</td><td>${avg.toFixed(3)} ${u}</td><td>${vals.length}</td></tr>`;
+    }).join('');
+}
+
+/* 初始化（進入分頁時呼叫） */
+async function z3aInit(){
+    if(z3aInitDone)return;
+    z3aInitDone=true;
+    z3aInitDates();
+    await z3aCheckStatus();
+    await z3aLoadDevices();
+}
+
+</script>
+</body>
+</html>
