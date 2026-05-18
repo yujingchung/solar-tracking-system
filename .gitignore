@@ -34,8 +34,9 @@ Thumbs.db
 data/
 *.csv
 
-# Word 文件
-*.docx
+# Word 文件 — 只擋 Word 暫存 lock 檔，正式 .docx 文件（使用手冊、論文等）保留
+~$*.docx
+*.tmp.docx
 test_write.txt
 
 # 自動化排程產生的執行 log
