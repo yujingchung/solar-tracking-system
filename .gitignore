@@ -44,6 +44,13 @@ logs/
 # scheduled task 中間產出（每週重新生成）
 z3a_pipeline_output/
 
+# 整理歸檔區（本機保留作參考，不上 git）
+_archive/
+
+# 照度入箱（每週合併後會自動移到 archive，但放這先不傳）
+data/illumination_inbox/
+data/illumination_archive/
+
 # Dashboard 備份檔（手動 / 自動產生的舊版備份，不上傳）
 backend/static/dashboard.bak.*.html
 backend/staticfiles/dashboard.bak.*.html
