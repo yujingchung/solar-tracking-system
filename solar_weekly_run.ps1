@@ -169,6 +169,57 @@ try {
 
 
 # ------------------------------------------------------------
+# Stage 2.5: Merge illumination CSV from inbox
+# ------------------------------------------------------------
+# User drops new Mongo-exported CSV files into data\illumination_inbox\
+# This stage auto-merges each one into the main CSV, then moves the file
+# to data\illumination_archive\ as a record.
+Write-Log ''
+Write-Log '-- Stage 2.5: Merge illumination CSV (inbox -> main CSV -> archive) --'
+
+$IlluminationStatus = 'OK no new files'
+$inboxDir   = Join-Path $ProjectRoot 'data\illumination_inbox'
+$archiveDir = Join-Path $ProjectRoot 'data\illumination_archive'
+
+if (-not (Test-Path $inboxDir)) {
+    New-Item -ItemType Directory -Force -Path $inboxDir   | Out-Null
+}
+if (-not (Test-Path $archiveDir)) {
+    New-Item -ItemType Directory -Force -Path $archiveDir | Out-Null
+}
+
+try {
+    $inboxFiles = @(Get-ChildItem -Path (Join-Path $inboxDir '*.csv') -ErrorAction SilentlyContinue)
+    if ($inboxFiles.Count -eq 0) {
+        Write-Log 'illumination_inbox is empty, nothing to merge'
+    } else {
+        Write-Log "Found $($inboxFiles.Count) CSV file(s) in inbox"
+        $totalMerged = 0
+        foreach ($f in $inboxFiles) {
+            Write-Log "Merging: $($f.Name)"
+            $mergeOutput = & python -X utf8 merge_illumination_csv.py --csv $f.FullName 2>&1
+            $mergeOutput | ForEach-Object { Write-Log $_ }
+
+            if ($LASTEXITCODE -eq 0) {
+                # Move file to archive with timestamp prefix to avoid name collision
+                $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+                $archivePath = Join-Path $archiveDir "${stamp}_$($f.Name)"
+                Move-Item -Force $f.FullName $archivePath
+                Write-Log "  -> Archived to: $($archivePath | Split-Path -Leaf)"
+                $totalMerged++
+            } else {
+                Write-Log "  FAIL merge failed for $($f.Name), keeping in inbox for retry" 'WARN'
+            }
+        }
+        $IlluminationStatus = "OK merged $totalMerged file(s)"
+    }
+} catch {
+    Write-Log "WARN Stage 2.5 exception: $($_.Exception.Message)" 'WARN'
+    $IlluminationStatus = "WARN exception: $($_.Exception.Message)"
+}
+
+
+# ------------------------------------------------------------
 # Stage 3: Z3A data collection (conditional)
 # ------------------------------------------------------------
 Write-Log ''
@@ -273,6 +324,7 @@ $reportLines += '============================================'
 $reportLines += ''
 $reportLines += "Backend health : $BackendStatus"
 $reportLines += "Token status   : $TokenStatus"
+$reportLines += "Illumination   : $IlluminationStatus"
 $reportLines += "Data collection: $CollectResult"
 $reportLines += "Cache reload   : $ReloadStatus"
 $reportLines += ''
