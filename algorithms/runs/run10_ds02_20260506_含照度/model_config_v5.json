@@ -1,0 +1,86 @@
+{
+  "model_version": "v5",
+  "target": "PR_norm = power_W / (theoretical_poa × 1.948 × 0.208)",
+  "feature_columns": [
+    "hour_sin",
+    "hour_cos",
+    "day_sin",
+    "day_cos",
+    "tilt_sin",
+    "tilt_cos",
+    "azimuth_sin",
+    "azimuth_cos",
+    "clearness"
+  ],
+  "input_dim": 9,
+  "num_mfs": 7,
+  "output_activation": "sigmoid",
+  "panel_area_m2": 1.948,
+  "panel_eff_stc": 0.208,
+  "site_lat": 25.1,
+  "site_lon": 121.43,
+  "poa_min": 50.0,
+  "split_method": "timestamp_aware (GroupShuffleSplit)",
+  "training_date": "2026-05-14 14:52:39",
+  "performance_watts": {
+    "rmse": 38.317848231136395,
+    "mae": 26.559342163959656,
+    "r2": 0.7921486638773894,
+    "mape": 38.02635310637777,
+    "by_range": {
+      "0-100W": {
+        "n": 20669,
+        "mae": 21.419018262057204,
+        "r2": -0.6218522827507564
+      },
+      "100-200W": {
+        "n": 11337,
+        "mae": 27.430077070358134,
+        "r2": -0.5896273957855116
+      },
+      "200-300W": {
+        "n": 8418,
+        "mae": 36.46952296827924,
+        "r2": -2.7109154660558032
+      },
+      ">300W": {
+        "n": 215,
+        "mae": 86.79157976312227,
+        "r2": -98.66081526328009
+      }
+    }
+  },
+  "performance_pr": {
+    "rmse": 0.11780352801150708,
+    "r2": 0.7284132838249207
+  },
+  "ranking_mode_a": {
+    "n_timestamps": 2222,
+    "avg_n_panels": 10.413141314131414,
+    "top1_accuracy": 0.3051305130513051,
+    "power_gap_mean": 7.903499183618362,
+    "power_gap_median": 1.9962355000000098,
+    "spearman_mean": 0.4803607925890535
+  },
+  "ranking_mode_b": {
+    "n_timestamps": 1000,
+    "n_grid_points": 64,
+    "tilt_range": [
+      0,
+      35,
+      5
+    ],
+    "azi_range": [
+      145,
+      215,
+      10
+    ],
+    "pred_best_mean": 90.89936065673828,
+    "true_max12_mean": 140.58394530799998,
+    "gain_mean": -49.68458197364227,
+    "gain_pct": -35.3415760702904,
+    "in_dataset_range_pct": 15.1,
+    "best_tilt_mean": 14.16,
+    "best_azi_mean": 173.54
+  }
+}

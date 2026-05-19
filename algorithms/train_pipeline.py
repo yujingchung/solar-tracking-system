@@ -75,6 +75,12 @@ def main():
     parser.add_argument("--overheat-power",     type=float, default=45,   help="過熱判定功率 W（預設 45）")
     parser.add_argument("--overheat-tolerance", type=float, default=10,   help="過熱容忍範圍 ±W（預設 10）")
     parser.add_argument("--overheat-window",    type=float, default=120,  help="連續過熱時間門檻 min（預設 120）")
+    parser.add_argument("--model",              default="v2",             help="模型版本：v2 / v3 / v4 / v4_1 / v5 / v6 / v8（預設 v2）")
+    parser.add_argument("--weight-alpha",       type=float, default=0.7,  help="樣本加權指數 alpha（v3/v4_1 power_alpha 模式用，預設 0.7；0=不加權）")
+    parser.add_argument("--weight-mode",        default="watts",          help="v4_1 樣本加權模式：watts / ratio / power_alpha（預設 watts）")
+    parser.add_argument("--illum-min",          type=float, default=50.0, help="v4_1 最小照度門檻 W/m²（預設 50）")
+    parser.add_argument("--poa-min",            type=float, default=50.0, help="v5 最小 theoretical_poa 門檻 W/m²（預設 50）")
+    parser.add_argument("--skip-mode-b",        action="store_true",      help="v4_1/v5 跳過 Mode B 連續網格評估")
     args = parser.parse_args()
 
     DATASETS.mkdir(exist_ok=True)
@@ -208,12 +214,59 @@ def main():
     print(f"  訓練資料夾: {run_name}")
     print(f"{'='*60}")
 
-    anfis_mod = _load_module("solar_anfis", BASE / "solar_anfis_model_v2.py")
+    model_ver = args.model.lower().strip()
+    if model_ver == "v8":
+        model_file = BASE / "solar_anfis_model_v8.py"
+        print(f"  使用模型版本: v8 (Hybrid POA + Panel Calibration, poa_min={args.poa_min})")
+    elif model_ver == "v6":
+        model_file = BASE / "solar_anfis_model_v6.py"
+        print(f"  使用模型版本: v6 (Hybrid POA + 直接幾何特徵, poa_min={args.poa_min})")
+    elif model_ver == "v5":
+        model_file = BASE / "solar_anfis_model_v5.py"
+        print(f"  使用模型版本: v5 (Hybrid POA + ANFIS, poa_min={args.poa_min})")
+    elif model_ver in ("v4_1", "v4.1", "v41"):
+        model_ver = "v4_1"
+        model_file = BASE / "solar_anfis_model_v4_1.py"
+        print(f"  使用模型版本: v4.1  (softplus + weight_mode={args.weight_mode}, illum_min={args.illum_min})")
+    elif model_ver == "v4":
+        model_file = BASE / "solar_anfis_model_v4.py"
+        print(f"  使用模型版本: v4  (target=efficiency_ratio, weight_alpha={args.weight_alpha})")
+    elif model_ver == "v3":
+        model_file = BASE / "solar_anfis_model_v3.py"
+        print(f"  使用模型版本: v3  (weight_alpha={args.weight_alpha})")
+    else:
+        model_file = BASE / "solar_anfis_model_v2.py"
+        print(f"  使用模型版本: v2")
 
-    result = anfis_mod.main(
-        file_path=str(ds_dir / "data.csv"),
-        output_dir=str(run_dir),
-    )
+    anfis_mod = _load_module("solar_anfis", model_file)
+
+    if model_ver in ("v5", "v6", "v8"):
+        result = anfis_mod.main(
+            file_path=str(ds_dir / "data.csv"),
+            output_dir=str(run_dir),
+            poa_min=args.poa_min,
+            skip_mode_b=args.skip_mode_b,
+        )
+    elif model_ver == "v4_1":
+        result = anfis_mod.main(
+            file_path=str(ds_dir / "data.csv"),
+            output_dir=str(run_dir),
+            weight_mode=args.weight_mode,
+            weight_alpha=args.weight_alpha,
+            illum_min=args.illum_min,
+            skip_mode_b=args.skip_mode_b,
+        )
+    elif model_ver in ("v3", "v4"):
+        result = anfis_mod.main(
+            file_path=str(ds_dir / "data.csv"),
+            output_dir=str(run_dir),
+            weight_alpha=args.weight_alpha,
+        )
+    else:
+        result = anfis_mod.main(
+            file_path=str(ds_dir / "data.csv"),
+            output_dir=str(run_dir),
+        )
 
     if result is None:
         print("❌ 訓練失敗")
@@ -223,17 +276,19 @@ def main():
     perf      = result["performance"]
     feat_cols = result["feature_columns"]
 
+    weight_alpha_line = f"\n    weight_alpha = {args.weight_alpha}" if model_ver == "v3" else ""
     readme_run = f"""\
 訓練結果: {run_name}
 訓練日期: {datetime.now().strftime('%Y-%m-%d %H:%M')}
 
 使用資料集: {ds_name}
+模型版本: {model_ver}
 
 模型配置:
     特徵維度    = {len(feat_cols)}
     MF 數量     = 7
     照度特徵    = {'是' if result['has_illumination'] else '否'}
-    特徵列表    = {', '.join(feat_cols)}
+    特徵列表    = {', '.join(feat_cols)}{weight_alpha_line}
 
 測試集結果:
     RMSE  = {perf['rmse']:.2f} W

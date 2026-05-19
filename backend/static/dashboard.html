@@ -438,19 +438,6 @@
         </div>
     </div>
 
-    <!-- 章節 5: A vs B 趨勢（保留原功能） -->
-    <div class="card card-accent" style="--accent: var(--gold-2)">
-        <div class="card-hdr">
-            <h6>面板組長期趨勢 (A vs B)</h6>
-            <div class="d-flex gap-2 align-items-center flex-wrap">
-                <select id="fp-trend-tilt-sel" class="form-select form-select-sm" style="width:100px" onchange="fpLoadPanelTrend()"><option value="">傾角…</option></select>
-                <select id="fp-trend-azi-sel" class="form-select form-select-sm" style="width:100px" onchange="fpLoadPanelTrend()"><option value="">方位角…</option></select>
-                <select id="fp-trend-month-sel" class="form-select form-select-sm" style="width:140px" onchange="fpLoadPanelTrend()"><option value="">全部月份</option></select>
-                <span class="ts-label" id="fp-trend-status">--</span>
-            </div>
-        </div>
-        <div class="card-body"><div style="height:280px;position:relative"><canvas id="fp-trend-chart"></canvas></div></div>
-    </div>
 
 </div><!-- /tab-fp-research -->
 
@@ -1117,11 +1104,9 @@ function buildSysPanel(sys) {
         </div>
         <div class="col-lg-4">
             <div class="card card-accent h-100" style="--accent: var(--danger)">
-                <div class="card-hdr"><h6>環境 &amp; 面板角度</h6></div>
+                <div class="card-hdr"><h6>面板角度</h6></div>
                 <div class="card-body">
                     <div class="row g-2">
-                        <div class="col-6"><div class="mtile"><div class="mlabel">溫度</div><div class="mval"><span id="s${p}-tmp">--</span><span class="munit">°C</span></div></div></div>
-                        <div class="col-6"><div class="mtile"><div class="mlabel">濕度</div><div class="mval"><span id="s${p}-hum">--</span><span class="munit">%</span></div></div></div>
                         <div class="col-6"><div class="mtile"><div class="mlabel">方位角 φ</div><div class="mval"><span id="s${p}-azi">--</span><span class="munit">°</span></div></div></div>
                         <div class="col-6"><div class="mtile"><div class="mlabel">傾角 β</div><div class="mval"><span id="s${p}-tilt">--</span><span class="munit">°</span></div></div></div>
                     </div>
@@ -1228,8 +1213,6 @@ async function loadSysData(sysId) {
         setEl(`s${p}-pwr`, fmt(d.power_output));
         setEl(`s${p}-v`, fmt(d.voltage));
         setEl(`s${p}-a`, fmt(d.current, 3));
-        setEl(`s${p}-tmp`, fmt(d.temperature, 1));
-        setEl(`s${p}-hum`, fmt(d.humidity, 1));
         setEl(`s${p}-azi`, fmt(d.panel_azimuth, 1));
         setEl(`s${p}-tilt`, fmt(d.panel_tilt, 1));
         const bl = d.light_intensity;
@@ -1335,7 +1318,7 @@ async function refreshCompare() {
 let fpInited = false;
 let fpSeason = 'all';
 let fpAziChart = null, fpTiltChart = null, fpAbChart = null;
-let fpCurveChart = null, fpDailyChart = null, fpDayChart = null, fpTrendChart = null;
+let fpCurveChart = null, fpDailyChart = null, fpDayChart = null;
 let fpAvailMonths = [], fpSummaryData = null;
 
 async function fpInit() {
@@ -1355,8 +1338,6 @@ async function fpInit() {
             sel.innerHTML = fpAvailMonths.map(m => `<option value="${m}">${m}</option>`).join('');
             if (fpAvailMonths.length) sel.value = fpAvailMonths[fpAvailMonths.length - 1];
         }
-        const tm = $('fp-trend-month-sel');
-        if (tm && fpAvailMonths.length) tm.innerHTML = '<option value="">全部月份</option>' + fpAvailMonths.map(m => `<option value="${m}">${m}</option>`).join('');
 
         // 傾角/方位下拉預設值
         const groups = d.panel_groups || [];
@@ -1364,11 +1345,10 @@ async function fpInit() {
         const azis = [...new Set(groups.map(g => g.azimuth))].sort((a, b) => a - b);
         const tiltOpts = tilts.map(t => `<option value="${t}">${t}°</option>`).join('');
         const aziOpts = azis.map(a => `<option value="${a}">${a}°</option>`).join('');
-        ['fp-day-tilt-sel', 'fp-trend-tilt-sel'].forEach(id => { const el = $(id); if (el) el.innerHTML = '<option value="">傾角…</option>' + tiltOpts; });
-        ['fp-day-azi-sel', 'fp-trend-azi-sel'].forEach(id => { const el = $(id); if (el) el.innerHTML = '<option value="">方位角…</option>' + aziOpts; });
+        ['fp-day-tilt-sel'].forEach(id => { const el = $(id); if (el) el.innerHTML = '<option value="">傾角…</option>' + tiltOpts; });
+        ['fp-day-azi-sel'].forEach(id => { const el = $(id); if (el) el.innerHTML = '<option value="">方位角…</option>' + aziOpts; });
         if (tilts.length && azis.length) {
             $('fp-day-tilt-sel').value = tilts[0]; $('fp-day-azi-sel').value = azis[0];
-            $('fp-trend-tilt-sel').value = tilts[0]; $('fp-trend-azi-sel').value = azis[0];
         }
         const di = $('fp-day-input');
         if (di && d.date_range?.end) { di.value = d.date_range.end; }
@@ -1380,7 +1360,6 @@ async function fpInit() {
         // 月度資料
         fpLoadAll();
         fpLoadDayCurve();
-        fpLoadPanelTrend();
     } catch (e) {
         console.error('fpInit', e);
         setEl('fp-rank-status', '無法載入');
@@ -1595,34 +1574,6 @@ async function fpLoadDayCurve() {
         if (tbody) tbody.innerHTML = rows || '<tr><td colspan="4" class="text-center text-muted">無資料</td></tr>';
         setEl('fp-day-status', `${date} · ${(d.datasets || []).length} 片面板`);
     } catch (e) { setEl('fp-day-status', '載入失敗'); console.error('fpLoadDayCurve', e); }
-}
-
-async function fpLoadPanelTrend() {
-    const tilt = $('fp-trend-tilt-sel')?.value || '', azi = $('fp-trend-azi-sel')?.value || '';
-    const month = $('fp-trend-month-sel')?.value || '';
-    if (!tilt || !azi) { setEl('fp-trend-status', '請選擇傾角與方位角'); return; }
-    setEl('fp-trend-status', '載入中…');
-    let url = `${API}/fixed-panels/panel-trend/?tilt=${tilt}&azimuth=${azi}`;
-    if (month) url += `&month=${encodeURIComponent(month)}`;
-    try {
-        const resp = await fetch(url); const d = await resp.json();
-        const groupKey = `${tilt}°/${azi}°`; const groupColor = fpGC(groupKey);
-        const ctx = $('fp-trend-chart'); if (!ctx) return;
-        if (fpTrendChart) fpTrendChart.destroy();
-        const datasets = (d.datasets || []).map((ds, i) => ({
-            label: `${ds.label} 功率 (W)`, data: ds.power || [],
-            borderColor: groupColor,
-            backgroundColor: i === 0 ? groupColor + '30' : 'transparent',
-            borderDash: i === 0 ? [] : [5, 3], fill: i === 0,
-            tension: 0.3, pointRadius: 1.5, borderWidth: 2
-        }));
-        fpTrendChart = new Chart(ctx, { type: 'line', data: { labels: d.labels || [], datasets },
-            options: { responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 } } } },
-                scales: { x: { ticks: { maxRotation: 45, font: { size: 9 } }, grid: { display: false } },
-                    y: { beginAtZero: true, title: { display: true, text: '功率 (W)', font: { size: 10 } }, grid: { color: '#F1F5F9' } } } } });
-        setEl('fp-trend-status', `${groupKey} · ${(d.datasets || []).length} 片 · ${(d.labels || []).length} 天`);
-    } catch (e) { setEl('fp-trend-status', '載入失敗'); console.error('fpLoadPanelTrend', e); }
 }
 
 /* ═════════ §6.5 CSV 進階分析 (原固定式面板發電分析全部功能) ═══════════════

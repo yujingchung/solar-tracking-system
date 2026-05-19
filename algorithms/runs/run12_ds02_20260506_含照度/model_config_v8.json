@@ -1,0 +1,87 @@
+{
+  "model_version": "v8",
+  "target": "PR_norm = power_W / (theoretical_poa × 1.948 × 0.208)",
+  "feature_columns": [
+    "hour_sin",
+    "hour_cos",
+    "day_sin",
+    "day_cos",
+    "tilt_sin",
+    "tilt_cos",
+    "azimuth_sin",
+    "azimuth_cos",
+    "clearness",
+    "panel_calib"
+  ],
+  "input_dim": 10,
+  "num_mfs": 7,
+  "output_activation": "sigmoid",
+  "panel_area_m2": 1.948,
+  "panel_eff_stc": 0.208,
+  "site_lat": 25.1,
+  "site_lon": 121.43,
+  "poa_min": 50.0,
+  "split_method": "timestamp_aware (GroupShuffleSplit)",
+  "training_date": "2026-05-14 15:30:39",
+  "performance_watts": {
+    "rmse": 41.34956285228232,
+    "mae": 28.91316379158094,
+    "r2": 0.7579570486714571,
+    "mape": 39.17981944224212,
+    "by_range": {
+      "0-100W": {
+        "n": 20669,
+        "mae": 22.29928185908833,
+        "r2": -0.9106666563325279
+      },
+      "100-200W": {
+        "n": 11337,
+        "mae": 28.813227857084684,
+        "r2": -0.6814516676876854
+      },
+      "200-300W": {
+        "n": 8418,
+        "mae": 43.576302119726535,
+        "r2": -3.552600486882568
+      },
+      ">300W": {
+        "n": 215,
+        "mae": 95.89456335318178,
+        "r2": -116.45826111889507
+      }
+    }
+  },
+  "performance_pr": {
+    "rmse": 0.12749355170128251,
+    "r2": 0.6818965673446655
+  },
+  "ranking_mode_a": {
+    "n_timestamps": 2222,
+    "avg_n_panels": 10.413141314131414,
+    "top1_accuracy": 0.3195319531953195,
+    "power_gap_mean": 9.219478703420343,
+    "power_gap_median": 1.4742287499999982,
+    "spearman_mean": 0.4646738753396362
+  },
+  "ranking_mode_b": {
+    "n_timestamps": 1000,
+    "n_grid_points": 64,
+    "tilt_range": [
+      0,
+      35,
+      5
+    ],
+    "azi_range": [
+      145,
+      215,
+      10
+    ],
+    "pred_best_mean": 86.18122100830078,
+    "true_max12_mean": 140.58394530799998,
+    "gain_mean": -54.402726773470796,
+    "gain_pct": -38.69768105759299,
+    "in_dataset_range_pct": 31.0,
+    "best_tilt_mean": 19.115,
+    "best_azi_mean": 179.31
+  }
+}

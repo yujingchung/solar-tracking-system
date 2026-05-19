@@ -1,0 +1,82 @@
+{
+  "model_version": "v4.1",
+  "target": "efficiency_ratio = power_W / illumination",
+  "feature_columns": [
+    "hour_sin",
+    "hour_cos",
+    "day_sin",
+    "day_cos",
+    "tilt_sin",
+    "tilt_cos",
+    "azimuth_sin",
+    "azimuth_cos"
+  ],
+  "input_dim": 8,
+  "num_mfs": 7,
+  "output_activation": "softplus",
+  "weight_mode": "watts",
+  "weight_alpha": 0.0,
+  "illum_min": 50.0,
+  "training_date": "2026-05-14 03:57:58",
+  "performance_watts": {
+    "rmse": 59.236520912251905,
+    "mae": 35.88923926681751,
+    "r2": 0.46857647433495,
+    "mape": 45.84659621366616,
+    "by_range": {
+      "0-100W": {
+        "n": 2259,
+        "mae": 26.7975193328661,
+        "r2": -3.395829434364966
+      },
+      "100-200W": {
+        "n": 1323,
+        "mae": 44.75111179641465,
+        "r2": -3.4508180780953257
+      },
+      "200-300W": {
+        "n": 1011,
+        "mae": 44.09162807343151,
+        "r2": -7.6499722923141285
+      },
+      ">300W": {
+        "n": 22,
+        "mae": 59.58573429647549,
+        "r2": -32.53903737454102
+      }
+    }
+  },
+  "performance_ratio": {
+    "rmse": 0.46262157040953056,
+    "r2": -0.0008047819137573242
+  },
+  "ranking_mode_a": {
+    "n_timestamps": 651,
+    "avg_n_panels": 2.121351766513057,
+    "top1_accuracy": 0.6159754224270353,
+    "power_gap_mean": 6.269665398848844,
+    "power_gap_median": 0.0,
+    "spearman_mean": 0.3767123287671233
+  },
+  "ranking_mode_b": {
+    "n_timestamps": 2000,
+    "n_grid_points": 64,
+    "tilt_range": [
+      0,
+      35,
+      5
+    ],
+    "azi_range": [
+      145,
+      215,
+      10
+    ],
+    "pred_best_mean": 147.56624823997035,
+    "true_max12_mean": 122.35997830024516,
+    "gain_mean": 25.2062699397252,
+    "gain_pct": 20.60009350269286,
+    "in_dataset_range_pct": 49.3,
+    "best_tilt_mean": 18.155,
+    "best_azi_mean": 186.79
+  }
+}

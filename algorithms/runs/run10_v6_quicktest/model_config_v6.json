@@ -1,0 +1,88 @@
+{
+  "model_version": "v6",
+  "target": "PR_norm = power_W / (theoretical_poa × 1.948 × 0.208)",
+  "feature_columns": [
+    "hour_sin",
+    "hour_cos",
+    "day_sin",
+    "day_cos",
+    "tilt_sin",
+    "tilt_cos",
+    "azimuth_sin",
+    "azimuth_cos",
+    "clearness",
+    "cos_incidence",
+    "sin_solar_elev"
+  ],
+  "input_dim": 11,
+  "num_mfs": 7,
+  "output_activation": "sigmoid",
+  "panel_area_m2": 1.948,
+  "panel_eff_stc": 0.208,
+  "site_lat": 25.1,
+  "site_lon": 121.43,
+  "poa_min": 50.0,
+  "split_method": "timestamp_aware (GroupShuffleSplit)",
+  "training_date": "2026-05-14 07:04:29",
+  "performance_watts": {
+    "rmse": 49.05482403935071,
+    "mae": 38.894318386380604,
+    "r2": 0.6639969590657273,
+    "mape": 61.41150015621211,
+    "by_range": {
+      "0-100W": {
+        "n": 2029,
+        "mae": 34.43800461650828,
+        "r2": -2.11153402768639
+      },
+      "100-200W": {
+        "n": 1085,
+        "mae": 26.776899860965177,
+        "r2": -0.24046694112381117
+      },
+      "200-300W": {
+        "n": 900,
+        "mae": 62.028046143386504,
+        "r2": -6.379586911648606
+      },
+      ">300W": {
+        "n": 19,
+        "mae": 110.94193722013775,
+        "r2": -134.742085066494
+      }
+    }
+  },
+  "performance_pr": {
+    "rmse": 0.1512797072098865,
+    "r2": 0.5422433614730835
+  },
+  "ranking_mode_a": {
+    "n_timestamps": 1185,
+    "avg_n_panels": 2.659915611814346,
+    "top1_accuracy": 0.6025316455696202,
+    "power_gap_mean": 5.415054674683544,
+    "power_gap_median": 0.0,
+    "spearman_mean": 0.3538779317697228
+  },
+  "ranking_mode_b": {
+    "n_timestamps": 1000,
+    "n_grid_points": 64,
+    "tilt_range": [
+      0,
+      35,
+      5
+    ],
+    "azi_range": [
+      145,
+      215,
+      10
+    ],
+    "pred_best_mean": 76.36100006103516,
+    "true_max12_mean": 124.330358956,
+    "gain_mean": -47.96935507585683,
+    "gain_pct": -38.58217371738868,
+    "in_dataset_range_pct": 28.299999999999997,
+    "best_tilt_mean": 22.185,
+    "best_azi_mean": 183.65
+  }
+}

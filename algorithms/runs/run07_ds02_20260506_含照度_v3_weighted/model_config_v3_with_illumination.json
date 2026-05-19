@@ -1,0 +1,52 @@
+{
+  "model_version": "v3",
+  "has_illumination": true,
+  "has_poa": true,
+  "has_solar_elev": true,
+  "feature_columns": [
+    "hour_sin",
+    "hour_cos",
+    "day_sin",
+    "day_cos",
+    "tilt_sin",
+    "tilt_cos",
+    "azimuth_sin",
+    "azimuth_cos",
+    "illumination",
+    "theoretical_poa",
+    "solar_elev_sin",
+    "solar_elev_cos"
+  ],
+  "input_dim": 12,
+  "num_mfs": 7,
+  "weight_alpha": 0.7,
+  "training_date": "2026-05-11 14:15:51",
+  "performance": {
+    "rmse": 35.16884573399488,
+    "mae": 23.680999898312074,
+    "r2": 0.8245564955865629,
+    "mape": 38.7624577497974,
+    "by_range": {
+      "0-100W": {
+        "n": 20766,
+        "mae": 21.349544632267367,
+        "r2": -0.8977553883047291
+      },
+      "100-200W": {
+        "n": 11015,
+        "mae": 22.687817201878918,
+        "r2": -0.16836068036232454
+      },
+      "200-300W": {
+        "n": 8751,
+        "mae": 29.284129047649635,
+        "r2": -1.2126672116342627
+      },
+      ">300W": {
+        "n": 192,
+        "mae": 77.44102213811748,
+        "r2": -90.6993255180262
+      }
+    }
+  }
+}
