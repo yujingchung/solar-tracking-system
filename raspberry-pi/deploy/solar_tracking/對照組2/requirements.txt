@@ -1,8 +1,9 @@
-# 對照組 (傳統 LDR 差值追日) 依賴套件
+# 對照組 (差分感測追日) Python 套件
 # 安裝指令：pip3 install -r requirements.txt
 
 gpiozero          # Raspberry Pi GPIO / MCP3008 ADC
 RPi.GPIO          # gpiozero 底層驅動
 smbus2            # INA3221 I2C 通訊
+spidev            # MCP3008 SPI
 requests          # Django API 上傳
 # minimalmodbus   # MPPT RS485（確認協定後取消註解）

@@ -1,0 +1,15 @@
+{
+    "system_id":  4,
+    "device_id":  "raspberry_pi_ctrl_2",
+    "type":  "traditional",
+    "api_url":  "https://solar-dashboard.tail7c1eb9.ts.net/api",
+    "api_url_lan":  "http://192.168.0.124:8000/api",
+    "title":  "對照組 II｜差分感測追日",
+    "location":  {
+                     "longitude":  121.43,
+                     "site":  "先鋒金土地公廟",
+                     "timezone":  "Asia/Taipei",
+                     "latitude":  25.1
+                 },
+    "notes":  "此 config.json 為記錄用。實際生效設定在 controller .py 的 CONFIG dict 內。"
+}

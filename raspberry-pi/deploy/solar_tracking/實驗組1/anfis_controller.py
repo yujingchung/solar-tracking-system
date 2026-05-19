@@ -738,4 +738,96 @@ class ANFISTrackingController:
                                    predicted_power,
                                    moved=True,
                                    power_after_move=power_after_move,
-                                   experience=exp
+                                   experience=experience)
+
+            # ── Step 9：判斷太陽時間 ──────────────────────────
+            self._wait_or_end(now)
+
+    def _wait_or_end(self, now: datetime):
+        """等待間隔時間，或太陽時間結束時回歸初始位置"""
+        if not self._is_sun_time(now):
+            self.actuator.return_to_initial()
+            logger.info("太陽時間結束，回歸初始位置，等待 %d 秒",
+                        CONFIG['interval_seconds'])
+        time.sleep(CONFIG['interval_seconds'])
+
+    def _upload_cycle_log(self, now: datetime,
+                          ldr_cal: Dict, illumination: float,
+                          current_power: float,
+                          best_beta: float, best_phi: float,
+                          predicted_power: float,
+                          moved: bool = False,
+                          power_after_move: float = None,
+                          experience: str = ''):
+        # 讀取 INA3221（推桿 CH1、Pi CH2）
+        try:
+            ina_act = self.ina3221.read_actuator()
+        except Exception as e:
+            logger.warning("推桿電力讀取失敗: %s", e)
+            ina_act = {'voltage': None, 'current': None}
+
+        try:
+            ina_pi = self.ina3221.read_pi()
+        except Exception as e:
+            logger.warning("Pi 電力讀取失敗: %s", e)
+            ina_pi = {'voltage': None, 'current': None}
+
+        # 讀取 MPPT（太陽能板 V/I）— 必填欄位
+        try:
+            mppt = read_mppt_power()
+        except NotImplementedError:
+            logger.warning("MPPT 讀取尚未實作，voltage/current 暫填 0")
+            mppt = {'voltage': 0.0, 'current': 0.0, 'power': 0.0}
+        except Exception as e:
+            logger.warning("MPPT 讀取失敗: %s", e)
+            mppt = {'voltage': 0.0, 'current': 0.0, 'power': 0.0}
+
+        payload = {
+            'system_id':              CONFIG['system_id'],
+            'timestamp':              now.isoformat(),
+            # 太陽能板（MPPT RS485）— serializer 必填
+            'voltage':                mppt['voltage'],
+            'current':                mppt['current'],
+            'power_output':           mppt['power'],
+            # 光照強度（四 LDR 校正平均，W/m²）
+            'light_intensity':        round(illumination, 1),
+            # 面板角度（傾角方位角系統）
+            'panel_tilt':             round(self.actuator.beta, 2),
+            'panel_azimuth':          round(self.actuator.phi,  2),
+            # 推桿角度（tip-tilt 系統）
+            'ns_actuator_angle':      round(self.actuator.gamma, 2),
+            'ew_actuator_angle':      round(self.actuator.zeta,  2),
+            # INA3221 CH1 推桿電力
+            'actuator_total_voltage': ina_act['voltage'],
+            'actuator_total_current': ina_act['current'],
+            # INA3221 CH2 樹莓派電力
+            'raspberry_pi_voltage':   ina_pi['voltage'],
+            'raspberry_pi_current':   ina_pi['current'],
+            # 備註（ANFIS 決策資訊）
+            'notes': (
+                f"exp={experience} moved={moved} "
+                f"pred_beta={best_beta:.1f} pred_phi={best_phi:.1f} "
+                f"pred_pwr={predicted_power:.1f} "
+                f"corr={self.correction:.3f}"
+            ),
+        }
+        upload_log(payload)
+
+
+# ════════════════════════════════════════════════════════════════
+# 進入點
+# ════════════════════════════════════════════════════════════════
+def main():
+    # 模型目錄：預設為本檔案的上上層目錄（raspberry-pi/）
+    model_dir = str(Path(__file__).parent.parent.parent)
+    controller = ANFISTrackingController(model_dir=model_dir)
+    try:
+        controller.run()
+    except KeyboardInterrupt:
+        logger.info("使用者中斷，程式結束")
+    except Exception as e:
+        logger.exception("未預期錯誤: %s", e)
+
+
+if __name__ == '__main__':
+    main()

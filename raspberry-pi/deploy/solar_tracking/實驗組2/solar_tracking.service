@@ -1,5 +1,5 @@
 [Unit]
-Description=Solar Tracking Controller (實驗組2)
+Description=Solar Tracking Controller (實驗組2, system_id=2)
 After=network.target
 Wants=network-online.target
 
