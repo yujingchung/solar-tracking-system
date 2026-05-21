@@ -77,6 +77,23 @@ def get_df():
             df["tilt_i"]    = df["tilt_angle"].astype(int)
             df["azimuth_i"] = df["azimuth_angle"].astype(int)
             df["group"]     = df["tilt_i"].astype(str) + "°/" + df["azimuth_i"].astype(str) + "°"
+
+            # ── 能量積分欄位 e_wh (方案B) ────────────────────────────────
+            # daily_energy_Wh 欄位僅 2025-03 前 20 天有值，其餘 99% 為空，
+            # 不能拿來加總。改用實際取樣間隔積分瞬時功率：
+            #   e_wh = power_W × 取樣間隔(小時)
+            # 規則：
+            #   - 間隔取「該筆與同面板前一筆的時間差」，上限 15 分鐘
+            #     （避免設備離線的大缺口被當成持續發電而灌水）
+            #   - 每片面板第一筆無前值 → 補 10 分鐘（標準取樣間隔）
+            #   - 重複 (panel_id, timestamp) 的後續筆時間差為 0 → 該筆能量 0，
+            #     天然去重，不會重複計算
+            df = df.sort_values(["panel_id", "timestamp"])
+            dt_h = (df.groupby("panel_id")["timestamp"].diff()
+                      .dt.total_seconds() / 3600.0)
+            dt_h = dt_h.clip(upper=15.0 / 60.0).fillna(10.0 / 60.0)
+            df["e_wh"] = (df["power_W"].astype("float64") * dt_h).astype("float32")
+
             _df = df
             try:
                 _df_mtime = os.path.getmtime(path)
@@ -243,7 +260,8 @@ class FixedPanelDayCurveView(View):
                 "azimuth": int(p["azimuth_i"]),
                 "data":    [round(float(pd_data.get(h, 0)), 2) for h in labels],
             })
-        energy = (filtered.groupby("panel_id")["daily_energy_Wh"].max().round(1).reset_index())
+        energy = (filtered.groupby("panel_id")["e_wh"].sum().round(1).reset_index()
+                  .rename(columns={"e_wh": "daily_energy_Wh"}))
         energy_map = {str(r["panel_id"]): float(r["daily_energy_Wh"]) for _, r in energy.iterrows()}
         return JsonResponse({"date": date, "labels": labels, "datasets": datasets, "energy_wh": energy_map})
 
@@ -277,7 +295,7 @@ class FixedPanelPanelTrendView(View):
         daily = (
             filtered
             .groupby(["date_str", "panel_id"])
-            .agg(power_W=("power_W", "mean"), daily_energy_Wh=("daily_energy_Wh", "max"))
+            .agg(power_W=("power_W", "mean"), daily_energy_Wh=("e_wh", "sum"))
             .round(2).reset_index().sort_values("date_str")
         )
         labels = sorted(daily["date_str"].unique().tolist())
@@ -399,10 +417,12 @@ class FixedPanelKpiSummaryView(View):
         if df_s.empty:
             return JsonResponse({"error": "filtered_empty"}, status=200)
 
-        # 每片面板每天的最大 daily_energy_Wh = 該天該片的累計能量
+        # 方案B：每片面板每天的發電量 = 該天該片所有樣本的功率積分加總
+        # （沿用 daily_energy_Wh 欄名，下游計算不變）
         day_energy = (
             df_s.groupby(["panel_id", "date_str", "tilt_i", "azimuth_i", "group"])
-                ["daily_energy_Wh"].max().reset_index()
+                ["e_wh"].sum().reset_index()
+                .rename(columns={"e_wh": "daily_energy_Wh"})
         )
         total_wh = float(day_energy["daily_energy_Wh"].sum())
         total_kwh = round(total_wh / 1000, 2)
@@ -448,8 +468,9 @@ class FixedPanelKpiSummaryView(View):
                 sdf = df[df["date"].dt.month.isin(months)]
                 if sdf.empty:
                     continue
-                s_day = (sdf.groupby(["panel_id", "date_str"])["daily_energy_Wh"]
-                          .max().reset_index())
+                s_day = (sdf.groupby(["panel_id", "date_str"])["e_wh"]
+                          .sum().reset_index()
+                          .rename(columns={"e_wh": "daily_energy_Wh"}))
                 e = float(s_day["daily_energy_Wh"].sum()) / 1000
                 by_season.append({"season": sname, "energy_kwh": round(e, 2)})
 

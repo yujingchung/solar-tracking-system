@@ -1,0 +1,29 @@
+# ── 本機（非 Docker）Python 腳本相依套件 ──
+# 用於：z3a_collect.py / train_pipeline.py / 固定面板 pipeline / ANFIS 訓練
+# 安裝指令（企業/防毒 SSL 攔截環境記得加 --trusted-host）：
+#   pip install -r requirements-local.txt ^
+#     --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org
+#
+# 注意：backend 的容器套件另見 backend/requirements.txt（Django 等），這裡只列本機腳本用到的。
+# 版本對齊 backend/requirements.txt 中重疊的套件，其餘給合理下限版本。
+
+# 資料處理（z3a_collect / 所有 pipeline 必備）
+pandas==2.2.2
+numpy>=1.26
+pytz>=2024.1
+
+# 太陽位置 / 角度計算（data preprocessing4.py、主資料集 solar_* 欄位）
+pvlib>=0.11.0
+
+# Z3A 雲端抓取
+requests==2.32.3
+urllib3==2.2.3
+
+# ANFIS 模型訓練（solar_anfis_model_v2.py / train_pipeline.py）
+# tensorflow 體積大，若新機只做維運、不重新訓練，可先把以下三行註解掉
+tensorflow>=2.16
+scikit-learn>=1.4
+joblib>=1.3
+
+# 圖表輸出（pipeline 視覺化 / 訓練曲線）
+matplotlib>=3.8
