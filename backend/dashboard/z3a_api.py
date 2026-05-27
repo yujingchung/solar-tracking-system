@@ -14,7 +14,7 @@ z3a_api.py  ——  QY-Z3A IoT 採集裝置歷史數據代理 API
   Z3A_TOKEN     — 初始 Bearer Token（可留空，由 PHONE+PASSWORD 自動取得）
 """
 
-import base64, json, logging, os, threading, time
+import base64, hashlib, json, logging, os, threading, time
 
 # requests 是選用依賴（Docker 環境可能尚未安裝）
 # 若未安裝，Z3A 端點會回傳 503，其他 API 不受影響
@@ -80,17 +80,21 @@ def _get_token() -> str:
             return _token   # 無法重新登入，回傳現有 token（可能已過期）
         try:
             logger.info("Z3A: 嘗試自動重新登入 (%s)", _PHONE)
+            pw_md5 = hashlib.md5(_PASS.encode("utf-8")).hexdigest()
             r = _req.post(
-                f"{_BASE}/login",
-                json={"PhoneNumber": _PHONE, "Password": _PASS},
+                f"{_BASE}/user/login",
+                data={"PhoneNumber": _PHONE, "PassWord": pw_md5},
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
                 verify=False, timeout=10,
             )
             data = r.json()
             # 嘗試常見 token 欄位名稱
             new_tok = (
-                data.get('token')
-                or data.get('Token')
+                (data.get('data') or {}).get('tokenString')
                 or (data.get('data') or {}).get('token')
+                or data.get('tokenString')
+                or data.get('token')
+                or data.get('Token')
                 or (data.get('data') or {}).get('Token')
                 or ''
             )

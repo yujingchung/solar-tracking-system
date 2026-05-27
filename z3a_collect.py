@@ -44,9 +44,7 @@ BASE_URL = os.environ.get("Z3A_BASE_URL", "https://server.qiyunwulian.com:12341"
 # ⚠ 若 token 過期且設定了 Z3A_PHONE/Z3A_PASSWORD，會自動重新登入
 TOKEN = os.environ.get(
     "Z3A_TOKEN",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
-    ".eyJQaG9uZU51bWJlciI6IjEzNTg0ODA5MzUzIiwiZXhwIjoxNzc4NjQ2MDQwLCJpc3MiOiJ3d3cuaW90Ny5jbiJ9"
-    ".UkjrCG_dUUcJzYkk9LYsSYqS8njW14sVWCJnMce2qSQ",
+    "",
 )
 
 # 自動登入用的帳密（取自 .env.dev 或環境變數）
@@ -259,8 +257,7 @@ def _ensure_valid_token() -> bool:
     Z3A_PHONE         = Z3A_PHONE         or env.get("Z3A_PHONE",         "")
     Z3A_PASSWORD      = Z3A_PASSWORD      or env.get("Z3A_PASSWORD",      "")
     Z3A_REFRESH_TOKEN = Z3A_REFRESH_TOKEN or env.get("Z3A_REFRESH_TOKEN", "")
-    if env.get("Z3A_TOKEN") and (TOKEN.startswith("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJQaG9uZU51bWJlciI6IjEzNTg0ODA5MzUzIiwiZXhwIjoxNzc4")
-                                  or not TOKEN):
+    if env.get("Z3A_TOKEN") and (not TOKEN or TOKEN.count(".") != 2):
         TOKEN = env["Z3A_TOKEN"]
 
     exp = _jwt_exp(TOKEN)
@@ -617,6 +614,8 @@ def _run_step5_combine(new_csv: Path, dry_run: bool = False):
 # ════════════════════════════════════════════════════════════════════════════════
 
 def main():
+    global CSV_PATH
+
     parser = argparse.ArgumentParser(description="Z3A 資料收集並合併至 combined CSV")
     parser.add_argument("--days",  type=int, default=7,
                         help="抓最近幾天的資料（預設 7 天）")
@@ -629,6 +628,11 @@ def main():
     parser.add_argument("--pipeline", action="store_true",
                         help="輸出原始 CSV → 自動執行前處理 pipeline（步驟 2+4+5）再合併")
     args = parser.parse_args()
+
+    env = _load_env_file()
+    csv_path = os.environ.get("Z3A_CSV_PATH") or env.get("Z3A_CSV_PATH")
+    if csv_path:
+        CSV_PATH = Path(csv_path)
 
     # 日期範圍
     end_date   = args.end   or date.today().strftime("%Y-%m-%d")
