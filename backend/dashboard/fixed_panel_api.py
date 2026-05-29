@@ -462,6 +462,14 @@ class FixedPanelKpiSummaryView(View):
         by_azi = [{"azimuth": int(k), "energy_kwh": float(v)} for k, v in by_azi.items()]
         by_azi.sort(key=lambda r: r["azimuth"])
 
+        # 場域月發電總量（所有固定面板合計，按月分組）
+        # 用 date_str 前 7 字元 (YYYY-MM) 當月份鍵，避開 timezone 問題
+        day_energy_copy = day_energy.copy()
+        day_energy_copy["month"] = day_energy_copy["date_str"].str[:7]
+        by_month = (day_energy_copy.groupby("month")["daily_energy_Wh"].sum() / 1000).round(2)
+        by_month = [{"month": str(k), "total_kwh": float(v)} for k, v in by_month.items()]
+        by_month.sort(key=lambda r: r["month"])
+
         by_season = []
         if season == "all":
             for sname, months in self.SEASON_MONTHS.items():
@@ -518,5 +526,6 @@ class FixedPanelKpiSummaryView(View):
             "by_tilt":        by_tilt,
             "by_azimuth":     by_azi,
             "by_season":      by_season,
+            "by_month":       by_month,
             "ab_consistency": ab,
         })

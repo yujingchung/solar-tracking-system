@@ -372,6 +372,27 @@
         </div>
     </div>
 
+    <!-- 章節 2.5: 場域月發電總量（新） -->
+    <div class="section-hdr">
+        <div>
+            <div class="section-title">場域月發電總量</div>
+            <div class="section-sub">全部固定面板每月合計發電量（kWh） — 看實驗場域整體季節變化</div>
+        </div>
+    </div>
+
+    <div class="card card-accent mb-4" style="--accent: var(--gold-2)">
+        <div class="card-hdr">
+            <h6>
+                <svg width="14" height="14" viewBox="0 0 16 16"><rect x="1" y="11" width="2" height="4" fill="currentColor" opacity="0.5"/><rect x="4" y="8" width="2" height="7" fill="currentColor" opacity="0.7"/><rect x="7" y="3" width="2" height="12" fill="currentColor"/><rect x="10" y="5" width="2" height="10" fill="currentColor" opacity="0.85"/><rect x="13" y="9" width="2" height="6" fill="currentColor" opacity="0.6"/></svg>
+                逐月總發電量（kWh）
+            </h6>
+            <span class="ts-label" id="fp-monthly-total-status">--</span>
+        </div>
+        <div class="card-body" style="height:300px;position:relative">
+            <canvas id="fp-monthly-total-chart"></canvas>
+        </div>
+    </div>
+
     <!-- 章節 3: 單日深入分析 -->
     <div class="section-hdr">
         <div>
@@ -1317,7 +1338,7 @@ async function refreshCompare() {
 /* ═════════ §6 固定面板研究頁 (FP Research) ═══════════════════════════════ */
 let fpInited = false;
 let fpSeason = 'all';
-let fpAziChart = null, fpTiltChart = null, fpAbChart = null;
+let fpAziChart = null, fpTiltChart = null, fpAbChart = null, fpMonthlyTotalChart = null;
 let fpCurveChart = null, fpDailyChart = null, fpDayChart = null;
 let fpAvailMonths = [], fpSummaryData = null;
 
@@ -1462,6 +1483,49 @@ function fpRenderRanking(kpi) {
                     y: { title: { display: true, text: 'Panel B 累計能量 (kWh)', font: { size: 10 } }, beginAtZero: true, grid: { color: '#F1F5F9' } }
                 } }
         });
+    }
+
+    // 場域月發電總量（柱狀圖，金色冠軍 / 深藍其他）
+    const byMonth = (kpi.by_month || []).slice().sort((a, b) => a.month.localeCompare(b.month));
+    if (fpMonthlyTotalChart) fpMonthlyTotalChart.destroy();
+    const monthCtx = $('fp-monthly-total-chart');
+    if (monthCtx && byMonth.length) {
+        const maxMonthKwh = Math.max(...byMonth.map(m => m.total_kwh), 0);
+        const totalSum = byMonth.reduce((s, m) => s + m.total_kwh, 0);
+        fpMonthlyTotalChart = new Chart(monthCtx, {
+            type: 'bar',
+            data: {
+                labels: byMonth.map(m => m.month),
+                datasets: [{
+                    label: '月發電總量 (kWh)',
+                    data: byMonth.map(m => m.total_kwh),
+                    backgroundColor: byMonth.map(m => m.total_kwh === maxMonthKwh ? '#D4A437' : '#2C4D85'),
+                    borderColor: byMonth.map(m => m.total_kwh === maxMonthKwh ? '#B8860B' : '#1A3563'),
+                    borderWidth: 1, borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: {
+                        label: c => [
+                            `${c.parsed.y.toFixed(1)} kWh`,
+                            `佔全部 ${(c.parsed.y / totalSum * 100).toFixed(1)}%`
+                        ]
+                    } }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+                    y: { beginAtZero: true, grid: { color: '#F1F5F9' },
+                         title: { display: true, text: '總發電量 (kWh)', font: { size: 11 } },
+                         ticks: { font: { size: 10 } } }
+                }
+            }
+        });
+        setEl('fp-monthly-total-status', `${byMonth.length} 個月 · 合計 ${totalSum.toFixed(1)} kWh`);
+    } else {
+        setEl('fp-monthly-total-status', '無資料');
     }
 }
 
