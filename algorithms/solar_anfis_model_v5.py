@@ -314,6 +314,67 @@ def evaluate_ranking_mode_a(df_test_meta: pd.DataFrame,
 
 
 # ════════════════════════════════════════════════════════════════
+# Mode A（分時段）：每個小時時段各自算 Top-1 Acc / Gap / Spearman
+# 用途：診斷模型在「早上/中午/傍晚」各時段的選角能力差異
+#       （對應「時間分段分析」想法的精華 — 當評估維度而非建模方式）
+# ════════════════════════════════════════════════════════════════
+def evaluate_ranking_mode_a_by_timeseg(df_test_meta: pd.DataFrame,
+                                       y_power_true: np.ndarray,
+                                       y_power_pred: np.ndarray):
+    print("\n=== Mode A 分時段 Ranking 評估 ===")
+    if 'hour_decimal' not in df_test_meta.columns:
+        print("  ⚠ 缺少 hour_decimal，跳過分時段評估")
+        return {}
+
+    df_eval = df_test_meta[['timestamp', 'tilt_angle', 'azimuth_angle',
+                            'hour_decimal']].copy()
+    df_eval['power_true'] = y_power_true
+    df_eval['power_pred'] = y_power_pred
+    df_eval['hour'] = df_eval['hour_decimal'].astype(int)
+
+    # 先 group 成每 timestamp 12 角度（A/B 取平均），保留 hour
+    df_agg = df_eval.groupby(
+        ['timestamp', 'hour', 'tilt_angle', 'azimuth_angle'], as_index=False
+    ).agg(power_true=('power_true', 'mean'),
+          power_pred=('power_pred', 'mean'))
+
+    seg_results = {}
+    print(f"  {'時段':<8}{'n_ts':<7}{'Top-1 Acc':<11}{'Gap均(W)':<10}{'Gap中(W)':<10}{'Spearman'}")
+    print("  " + "─" * 56)
+
+    for h in range(5, 20):
+        sub = df_agg[df_agg['hour'] == h]
+        if sub['timestamp'].nunique() < 20:
+            continue
+        top1, gaps, rhos = [], [], []
+        for ts, g in sub.groupby('timestamp'):
+            if len(g) < 2:
+                continue
+            ti = g['power_true'].idxmax()
+            pi = g['power_pred'].idxmax()
+            top1.append(ti == pi)
+            gaps.append(g.loc[ti, 'power_true'] - g.loc[pi, 'power_true'])
+            if HAS_SCIPY and len(g) >= 3:
+                rho, _ = spearmanr(g['power_true'], g['power_pred'])
+                if not np.isnan(rho):
+                    rhos.append(rho)
+        if not top1:
+            continue
+        acc = float(np.mean(top1))
+        gm  = float(np.mean(gaps))
+        gmd = float(np.median(gaps))
+        sp  = float(np.mean(rhos)) if rhos else None
+        seg_results[f"{h}-{h+1}"] = {
+            'n_timestamps': len(top1), 'top1_accuracy': acc,
+            'power_gap_mean': gm, 'power_gap_median': gmd, 'spearman_mean': sp,
+        }
+        sp_str = f"{sp:+.3f}" if sp is not None else "N/A"
+        print(f"  {h}-{h+1:<5} {len(top1):<6} {acc*100:>6.1f}%    {gm:>6.2f}    {gmd:>6.2f}    {sp_str}")
+
+    return seg_results
+
+
+# ════════════════════════════════════════════════════════════════
 # Mode B：用 pvlib 算 OOD 角度的 POA
 # ════════════════════════════════════════════════════════════════
 def compute_poa_grid(timestamps: pd.Series, tilt_grid: np.ndarray,
@@ -643,6 +704,8 @@ def main(file_path=None, output_dir=None, poa_min: float = 50.0,
     range_results = evaluate_by_range(y_power_test, y_power_pred)
 
     ranking_a = evaluate_ranking_mode_a(df_test_meta, y_power_test, y_power_pred)
+    ranking_a_timeseg = evaluate_ranking_mode_a_by_timeseg(
+        df_test_meta, y_power_test, y_power_pred)
 
     if skip_mode_b:
         print("\n  ⏭ 跳過 Mode B")
@@ -696,7 +759,7 @@ def main(file_path=None, output_dir=None, poa_min: float = 50.0,
     axes[1,2].hist(y, bins=50, alpha=0.6, color='steelblue', label='真實')
     axes[1,2].hist(pr_pred, bins=50, alpha=0.5, color='orange', label='預測')
     axes[1,2].set_xlabel('PR_norm')
-    axes[1,2].set_title('PR_norm 分布比較'); axes[1,2].legend(); axes[1,2].grid(alpha=0.3)
+    axes[1,2].set_title('PR_norm distribution'); axes[1,2].legend(); axes[1,2].grid(alpha=0.3)
 
     plt.tight_layout()
     plot_path = os.path.join(output_dir, 'anfis_v5_analysis.png')
@@ -711,7 +774,7 @@ def main(file_path=None, output_dir=None, poa_min: float = 50.0,
 
     config = {
         'model_version':    'v5',
-        'target':           f'PR_norm = power_W / (theoretical_poa × {PANEL_AREA_M2} × {PANEL_EFF_STC})',
+        'target':           f'PR_norm = power_W / (theoretical_poa * {PANEL_AREA_M2} * {PANEL_EFF_STC})',
         'feature_columns':  feature_columns,
         'input_dim':        len(feature_columns),
         'num_mfs':          NUM_MFS,
@@ -731,6 +794,7 @@ def main(file_path=None, output_dir=None, poa_min: float = 50.0,
             'rmse': pr_rmse, 'r2': pr_r2,
         },
         'ranking_mode_a': ranking_a,
+        'ranking_mode_a_timeseg': ranking_a_timeseg,
         'ranking_mode_b': ranking_b,
     }
     with open(config_path, 'w', encoding='utf-8') as f:
@@ -744,16 +808,6 @@ def main(file_path=None, output_dir=None, poa_min: float = 50.0,
     print(f"  Scaler: {scaler_path}")
     print(f"  Config: {config_path}")
 
-    print(f"""
-=== 控制器推論方式（v5）===
-  # 給定 timestamp t 與當前/目標角度 (tilt, azi)：
-  # 1. 用 pvlib 算 POA(t, tilt, azi)
-  # 2. 構造特徵 (hour/day sin-cos, tilt/azi sin-cos, clearness)
-  # 3. PR = model.predict(features)
-  # 4. predicted_power = PR × POA × {PANEL_AREA_M2} × {PANEL_EFF_STC}
-  # 5. 對候選角度集合，挑 predicted_power 最高者
-""")
-
     return {
         'model': model,
         'scaler_X': scaler_X,
@@ -761,6 +815,7 @@ def main(file_path=None, output_dir=None, poa_min: float = 50.0,
         'performance': {'rmse': rmse, 'mae': mae, 'r2': r2, 'mape': mape},
         'range_results': range_results,
         'ranking_mode_a': ranking_a,
+        'ranking_mode_a_timeseg': ranking_a_timeseg,
         'ranking_mode_b': ranking_b,
         'has_illumination': True,
     }
@@ -768,7 +823,6 @@ def main(file_path=None, output_dir=None, poa_min: float = 50.0,
 
 if __name__ == '__main__':
     import argparse
-
     parser = argparse.ArgumentParser(description='ANFIS v5 hybrid POA')
     parser.add_argument('file_path',     nargs='?', help='dataset CSV path')
     parser.add_argument('--output-dir',  default=None)

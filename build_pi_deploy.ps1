@@ -35,6 +35,7 @@ $ProjectRoot  = (Resolve-Path .).Path
 $DeployRoot   = Join-Path $ProjectRoot 'raspberry-pi\deploy\solar_tracking'
 $SrcCtrlAnfis = Join-Path $ProjectRoot 'raspberry-pi\src\controllers\anfis_controller.py'
 $SrcCtrlTrad  = Join-Path $ProjectRoot 'raspberry-pi\src\controllers\traditional_controller.py'
+$SrcAnfisLayer = Join-Path $ProjectRoot 'raspberry-pi\src\controllers\anfis_layer.py'
 $ModelDir     = Join-Path $ProjectRoot 'algorithms\runs\run05_ds02_20260506_含照度'
 
 # Pi 設定矩陣
@@ -92,6 +93,12 @@ foreach ($pi in $Pis) {
     [System.IO.File]::WriteAllText($dst, $content, [System.Text.UTF8Encoding]::new($false))
     Write-Host "  ✓ controller: $(Split-Path $dst -Leaf)"
 
+    # 2b. ANFIS 才需要 anfis_layer.py(SimpleFuzzyLayer 給 Keras 3 載入 v2 模型用)
+    if ($type -eq 'anfis') {
+        Copy-Item -Force $SrcAnfisLayer (Join-Path $piDir 'anfis_layer.py')
+        Write-Host "  ✓ anfis_layer.py"
+    }
+
     # 3. config.json (informational, 也可給未來改為動態載入用)
     $cfg = [PSCustomObject]@{
         system_id   = $sid
@@ -119,13 +126,15 @@ foreach ($pi in $Pis) {
 
 gpiozero          # Raspberry Pi GPIO / MCP3008 ADC
 RPi.GPIO          # gpiozero 底層驅動
+lgpio             # Pi 5 偏好的 GPIO 後端（Pi 4 也可裝,gpiozero 自動選用）
 smbus2            # INA3221 I2C 通訊
 spidev            # MCP3008 SPI
 numpy             # 數值計算
 requests          # Django API 上傳
-tensorflow        # ANFIS 模型推論 (用 tflite-runtime 替代會更輕)
+tensorflow        # ANFIS 模型推論
 joblib            # scaler 載入
-# minimalmodbus   # MPPT RS485（確認協定後取消註解）
+scikit-learn      # joblib 反序列化 MinMaxScaler 需要(否則 ModuleNotFoundError: sklearn)
+minimalmodbus     # MPPT RS485（EPEVER Tracer-AN, 115200/8N1, slave=1, reg 0x3100~0x3103）
 '@
     } else {
         $req = @'

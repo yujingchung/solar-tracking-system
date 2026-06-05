@@ -63,14 +63,15 @@ try:
 except ImportError:
     HARDWARE_AVAILABLE = False
 
-# ── ANFIS 模型導入（需 tensorflow）──────────────────────────────
+# ── ANFIS 模型導入（需 tensorflow + 自訂 SimpleFuzzyLayer）─────
 try:
     import tensorflow as tf
     import joblib
+    from anfis_layer import SimpleFuzzyLayer   # Keras 3 用 custom_objects 載入
     ANFIS_AVAILABLE = True
 except ImportError:
     ANFIS_AVAILABLE = False
-    print("警告：TensorFlow 未安裝，將使用模擬預測")
+    print("警告：TensorFlow / anfis_layer 未安裝，將使用模擬預測")
 
 # ════════════════════════════════════════════════════════════════
 # 設定
@@ -344,7 +345,9 @@ class ANFISModel:
             return
 
         try:
-            self.model  = tf.keras.models.load_model(str(k_path), compile=False)
+            self.model  = tf.keras.models.load_model(
+                str(k_path), compile=False,
+                custom_objects={'SimpleFuzzyLayer': SimpleFuzzyLayer})
             self.scaler = joblib.load(str(s_path))
             with open(c_path, encoding='utf-8') as f:
                 self.config = json.load(f)
@@ -783,7 +786,7 @@ class ANFISTrackingController:
             mppt = {'voltage': 0.0, 'current': 0.0, 'power': 0.0}
 
         payload = {
-            'system_id':              CONFIG['system_id'],
+            'system':                 CONFIG['system_id'],   # Django serializer 必填欄位名為 'system'
             'timestamp':              now.isoformat(),
             # 太陽能板（MPPT RS485）— serializer 必填
             'voltage':                mppt['voltage'],
@@ -819,7 +822,9 @@ class ANFISTrackingController:
 # ════════════════════════════════════════════════════════════════
 def main():
     # 模型目錄：預設為本檔案的上上層目錄（raspberry-pi/）
-    model_dir = str(Path(__file__).parent.parent.parent)
+    # model_dir 是放 controller 的目錄（同層的 models/ 子資料夾)
+    # 原本 .parent.parent.parent 會跑到家目錄,讓 base/'models/...' 變成 ~/models/... 找不到
+    model_dir = str(Path(__file__).resolve().parent)
     controller = ANFISTrackingController(model_dir=model_dir)
     try:
         controller.run()
