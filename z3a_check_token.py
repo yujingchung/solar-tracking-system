@@ -7,6 +7,10 @@ import base64, json, time
 from pathlib import Path
 from datetime import datetime
 
+import requests
+
+requests.packages.urllib3.disable_warnings()
+
 def load_env(p):
     env = {}
     if not p.exists(): return env
@@ -24,8 +28,42 @@ def jwt_exp(token):
         return int(json.loads(base64.b64decode(part)).get("exp", 0))
     except: return 0
 
+def days_left(token, now):
+    exp = jwt_exp(token)
+    if not exp:
+        return None
+    return (exp - now) / 86400
+
+def token_can_query_devices(base_url, token):
+    if not token:
+        return False
+    try:
+        r = requests.get(
+            base_url.rstrip("/") + "/bind/query",
+            headers={"auth": token},
+            verify=False,
+            timeout=10,
+        )
+        raw = r.json() if r.text else {}
+        return r.status_code == 200 and raw.get("code") == 0
+    except Exception:
+        return False
+
 env = load_env(Path(__file__).parent / ".env.dev")
 now = time.time()
+access_token = env.get("Z3A_TOKEN", "")
+refresh_token = env.get("Z3A_REFRESH_TOKEN", "")
+base_url = env.get("Z3A_BASE_URL", "https://server.qiyunwulian.com:12341")
+access_days = days_left(access_token, now)
+refresh_days = days_left(refresh_token, now)
+
+if access_days is not None and access_days > 0:
+    print(f"COLLECTION_AUTH_STATUS: OK access token usable — 剩 {access_days:.1f} 天")
+elif refresh_days is not None and refresh_days > 0 and token_can_query_devices(base_url, refresh_token):
+    print(f"COLLECTION_AUTH_STATUS: OK refresh token/token2 data fallback usable — 剩 {refresh_days:.1f} 天")
+else:
+    print("COLLECTION_AUTH_STATUS: FAIL no usable access token or token2 data fallback")
+print()
 
 print("══════════════════════════════════════════════════════")
 print("  Z3A Token 狀態檢查")
