@@ -11,7 +11,7 @@ z3a_api.py  ——  QY-Z3A IoT 採集裝置歷史數據代理 API
   Z3A_BASE_URL  — API 根 URL
   Z3A_PHONE     — 手機號（用於自動重新登入）
   Z3A_PASSWORD  — 密碼
-  Z3A_TOKEN     — 初始 Bearer Token（可留空，由 PHONE+PASSWORD 自動取得）
+  Z3A_TOKEN     — 初始 Token（可留空，由 PHONE+PASSWORD 自動取得）
 """
 
 import base64, json, logging, os, threading, time
@@ -106,7 +106,7 @@ def _get_token() -> str:
 
 
 def _headers() -> dict:
-    return {"auth": f"Bearer {_get_token()}"}
+    return {"auth": _get_token()}
 
 
 def _err(msg, status=500):

@@ -40,7 +40,7 @@ log = logging.getLogger(__name__)
 
 BASE_URL = os.environ.get("Z3A_BASE_URL", "https://server.qiyunwulian.com:12341")
 
-# Bearer Token（從 App 或 Fiddler 取得，到期後需要更新）
+# Z3A Token（從 App cache 或 Fiddler 取得，到期後需要更新）
 # ⚠ 若 token 過期且設定了 Z3A_PHONE/Z3A_PASSWORD，會自動重新登入
 TOKEN = os.environ.get(
     "Z3A_TOKEN",
@@ -213,10 +213,10 @@ def _refresh_with_token2(refresh_token: str) -> str | None:
         data_body = None
         try:
             if mode == "header_auth":
-                headers["auth"] = f"Bearer {TOKEN}"
+                headers["auth"] = TOKEN
                 data_body = body
             elif mode == "header_auth_t2_only":
-                headers["auth"] = f"Bearer {refresh_token}"
+                headers["auth"] = refresh_token
             elif mode == "form_t2":
                 data_body = {"refreshToken": refresh_token}
             if data_body is not None:
@@ -243,6 +243,23 @@ def _refresh_with_token2(refresh_token: str) -> str | None:
             continue
     log.warning("✗ 所有 refresh 端點都失敗（tokenString2 可能也過期或端點未知）")
     return None
+
+
+def _token_can_query_devices(candidate_token: str) -> bool:
+    """Return True when a token is accepted by Z3A data APIs."""
+    if not candidate_token:
+        return False
+    try:
+        r = requests.get(
+            f"{BASE_URL}/bind/query",
+            headers={"auth": candidate_token},
+            verify=False,
+            timeout=10,
+        )
+        raw = r.json() if r.text else {}
+        return r.status_code == 200 and raw.get("code") == 0
+    except Exception:
+        return False
 
 
 def _ensure_valid_token() -> bool:
@@ -283,6 +300,10 @@ def _ensure_valid_token() -> bool:
             if new_tok:
                 TOKEN = new_tok
                 return True
+            if _token_can_query_devices(Z3A_REFRESH_TOKEN):
+                log.warning("✓ tokenString2 可直接呼叫資料 API，本次改用 Z3A_REFRESH_TOKEN 作為 auth")
+                TOKEN = Z3A_REFRESH_TOKEN
+                return True
 
     # 最後一招：自動登入（會被驗證碼擋）
     log.info("→ 嘗試用帳密自動登入（雲端強制驗證碼，多半失敗）…")
@@ -300,7 +321,7 @@ def _ensure_valid_token() -> bool:
 
 
 def _headers() -> dict:
-    return {"auth": f"Bearer {TOKEN}"}
+    return {"auth": TOKEN}
 
 
 # ════════════════════════════════════════════════════════════════════════════════
