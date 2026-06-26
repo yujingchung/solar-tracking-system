@@ -1,0 +1,118 @@
+/* ============================================================
+   Material You (MD3) 再皮膚 — 追日系統儀表板覆蓋檔
+   於 theme.css / Bootstrap 之後載入。不更動任何 HTML / JS / class。
+   設計來源：「追日系統 Material You 設計系統」專案
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap");
+
+:root {
+  /* —— 主色軸：學術深藍 → MD3 紫色種子 #6750A4 —— */
+  --navy-1: #6750A4;  --navy-2: #5B4791;  --navy-3: #7965B3;
+  --navy-4: #8B79C2;  --navy-5: #B7A8DB;  --navy-bg: #FFFBFE;
+
+  /* —— 亮點：錢金黃 → 太陽金 tertiary（保留品牌暖色，僅用於資料/排行） —— */
+  --gold-1: #8A5300;  --gold-2: #C8860B;  --gold-3: #E0B44A;
+  --gold-bg: #FFEFD0; --gold-border: #F2D9A0;
+
+  /* —— 中性／文字（暖調，非純黑白；MD3 on-surface 家族） —— */
+  --ink-1: #1C1B1F;  --ink-2: #322F35;  --ink-3: #49454F;
+  --ink-4: #625B71;  --ink-5: #79747E;
+  --line-1: #CAC4D0; --line-2: #E7E0EC;
+  --surface: #FFFFFF;                 /* 卡片底，靠柔和陰影分層 */
+  --canvas: #FDFBFF;                  /* 頁面底：淡紫 off-white（永不純白） */
+  --canvas-paper: #F3EDF7;            /* 表頭下方 status strip 用 */
+  --canvas-deep: #F7F2FA;
+  --canvas-deep-grad: linear-gradient(180deg, #F7F2FA 0%, #F3EDF7 100%); /* 表頭改「淺色調表面」 */
+
+  /* —— 四套系統（實驗組=紫族、對照組=青族；維持可辨識度） —— */
+  --exp-1: #6750A4; --exp-1-bg: #EADDFF; --exp-1-border: #D0BCFF;
+  --exp-2: #8B6FD0; --exp-2-bg: #EEE4FF;
+  --ctrl-1: #1E6A5C; --ctrl-1-bg: #BFEDE0; --ctrl-1-border: #8FD9C8;
+  --ctrl-2: #4E9D8C; --ctrl-2-bg: #D3F1E9;
+
+  /* —— 重點／語意色（MD3 tonal） —— */
+  --solar: #C8860B; --solar-deep: #8A5300; --solar-bg: #FFEFD0; --solar-border: #F2D9A0;
+  --success: #146C43; --success-bg: #C7F0D6;
+  --warn: #8A5300;    --warn-bg: #FFDDB3;
+  --danger: #B3261E;  --danger-bg: #F9DEDC;
+  --info: #00658F;    --info-bg: #C7E7FF;
+
+  /* —— 圓角：MD3 大圓角（更圓潤、友善） —— */
+  --r-1: 6px; --r-2: 10px; --r-3: 14px; --r-4: 18px; --r-pill: 999px; --radius: 14px;
+
+  /* —— 陰影：MD3 柔和、近黑、低不透明度（用色調分層，不靠重陰影） —— */
+  --shadow-1: 0 1px 2px rgba(28,27,31,.06), 0 1px 3px rgba(28,27,31,.04);
+  --shadow-2: 0 2px 6px rgba(28,27,31,.08), 0 1px 3px rgba(28,27,31,.05);
+  --shadow-3: 0 8px 24px rgba(28,27,31,.12), 0 2px 6px rgba(28,27,31,.06);
+  --shadow-header: 0 1px 0 var(--line-1), 0 2px 8px rgba(28,27,31,.05);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, #6750A4 30%, transparent);
+
+  /* —— 動態：MD3 emphasized easing —— */
+  --ease: cubic-bezier(.2, 0, 0, 1);
+  --ease-out: cubic-bezier(.05, .7, .1, 1);
+
+  /* —— 字型：加入 Roboto，CJK 仍用 Noto Sans TC —— */
+  --font-sans: 'Roboto', 'Noto Sans TC', 'Microsoft JhengHei', '微軟正黑體', system-ui, sans-serif;
+
+  /* —— 排行配色：金 → 紫漸層 —— */
+  --c-rank-1: #C8860B; --c-rank-2: #6750A4; --c-rank-3: #8B6FD0; --c-rank-4: #B7A8DB;
+
+  /* —— legacy 別名同步 —— */
+  --c-navy: #6750A4; --c-solar: #C8860B; --c-exp1: #6750A4; --c-exp2: #8B6FD0;
+  --c-ctrl1: #1E6A5C; --c-ctrl2: #4E9D8C; --c-border: #CAC4D0; --c-card: #FFFFFF; --c-bg: #FDFBFF;
+}
+
+/* ========== 形狀：所有按鈕／頁籤底切換鈕 → 藥丸；按壓回饋 ========== */
+.btn, .pill-btn, .season-btn { border-radius: var(--r-pill) !important; }
+.btn { font-weight: 500; letter-spacing: .1px;
+  transition: background .2s var(--ease), box-shadow .2s var(--ease), transform .1s var(--ease); }
+.btn:active, .pill-btn:active, .season-btn:active { transform: scale(.96); }
+.btn-primary:hover { background: color-mix(in srgb, #fff 8%, var(--navy-1)); box-shadow: var(--shadow-2); }
+
+/* ========== 卡片：大圓角＋柔和陰影 ========== */
+.card, .kpi-card, .mtile, .compass-cell { border-radius: var(--r-4) !important; }
+.mtile, .compass-cell { border-radius: var(--r-2) !important; }
+.card { border-color: var(--line-1); }
+.card.is-hover { transition: box-shadow .3s var(--ease), transform .3s var(--ease); }
+.card.is-hover:hover { box-shadow: var(--shadow-3); transform: translateY(-2px); }
+
+/* ========== KPI 全紫一致（金色 KPI 改紫；依你選定方向 b） ========== */
+.kpi-card.kpi-gold { background: var(--exp-1-bg) !important; border-color: var(--exp-1-border) !important; }
+.kpi-card.kpi-gold::before { background: linear-gradient(90deg, var(--navy-1), var(--navy-3)) !important; }
+.kpi-card.kpi-gold .kpi-label,
+.kpi-card.kpi-gold .kpi-sub b { color: var(--navy-1) !important; }
+/* 金牌獎章（SVG inline 用金色）改紫 —— 見 §5 註記 */
+
+/* ========== MD3 filled 輸入框：上圓角、底線、聚焦變主色 ========== */
+.form-control, .form-select {
+  border: none !important;
+  border-bottom: 1px solid var(--ink-5) !important;
+  border-radius: var(--r-2) var(--r-2) 0 0 !important;
+  background: var(--line-2);
+}
+.form-control:focus, .form-select:focus {
+  border-bottom: 2px solid var(--navy-1) !important;
+  box-shadow: none !important; background: var(--line-2);
+}
+
+/* ========== 表頭：淺色調表面（依你選定方向 a） ========== */
+.app-header { color: var(--ink-1) !important; }
+.app-header .hdr-logo small,
+.live-clock .lc-date { color: var(--ink-4) !important; }
+.live-clock .lc-time { color: var(--ink-1) !important; }
+
+/* status strip 原本是硬寫深藍 #061327 → 改淺色調 */
+.status-strip { background: var(--canvas-paper) !important; border-bottom: 1px solid var(--line-1); }
+.status-pill { background: #fff !important; border-color: var(--line-1) !important; box-shadow: var(--shadow-1); }
+.status-pill:hover { background: var(--exp-1-bg) !important; border-color: var(--exp-1-border) !important; }
+.pill-name { color: var(--ink-3) !important; }
+
+/* ========== 頁籤 active：紫色底線 ========== */
+.main-nav { box-shadow: 0 1px 0 var(--line-1); }
+.tab-btn.active { color: var(--navy-1) !important; border-bottom-color: var(--navy-1) !important; }
+.tab-btn.active .tab-icon { color: var(--navy-1) !important; }
+
+/* ========== 膠囊狀標籤圓角 ========== */
+.ob, .badge-exp, .badge-ctrl, .badge-gold, .status-dot { border-radius: var(--r-pill); }
+.section-hdr::after { background: var(--navy-1); } /* 章節底線金 → 紫 */

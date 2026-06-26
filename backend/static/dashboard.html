@@ -4,9 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>追日系統研究監控平台 · 先鋒金土地公廟</title>
+    <meta name="description" content="ANFIS 智慧追日 vs 差分感測對照實驗監控平台 — 先鋒金土地公廟太陽能實驗場，28 片固定角度面板與 4 套追日系統即時數據">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2040%2040'%3E%3Crect%20width='40'%20height='40'%20rx='8'%20fill='%230B1E3F'/%3E%3Ccircle%20cx='28'%20cy='11'%20r='5'%20fill='%23D4A437'/%3E%3Cpolygon%20points='7,32%2031,32%2027,16%2011,16'%20fill='%231A3563'%20stroke='%23D4A437'%20stroke-width='1.5'/%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/static/theme.css">
+    <link rel="stylesheet" href="/static/md3-overrides.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -50,38 +55,38 @@
 <!-- ════════════════════════════════════════════════════════════
      MAIN NAV · 6 個頁籤
 ════════════════════════════════════════════════════════════ -->
-<nav class="main-nav">
-    <button class="tab-btn t-ov active" onclick="switchTab('overview')">
-        <span class="tab-icon"><svg width="14" height="14" viewBox="0 0 16 16"><rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor"/><rect x="9" y="1" width="6" height="6" rx="1" fill="currentColor" opacity="0.6"/><rect x="1" y="9" width="6" height="6" rx="1" fill="currentColor" opacity="0.6"/><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor"/></svg></span>
+<nav class="main-nav" aria-label="主要頁籤">
+    <button class="tab-btn t-ov active" aria-current="page" onclick="switchTab('overview')">
+        <span class="tab-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16"><rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor"/><rect x="9" y="1" width="6" height="6" rx="1" fill="currentColor" opacity="0.6"/><rect x="1" y="9" width="6" height="6" rx="1" fill="currentColor" opacity="0.6"/><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor"/></svg></span>
         總覽
     </button>
     <button class="tab-btn t-csv" onclick="switchTab('fp-research')">
-        <span class="tab-icon"><svg width="14" height="14" viewBox="0 0 16 16"><polygon points="2,12 6,12 5,4 3,4" fill="currentColor" opacity="0.5"/><polygon points="6,12 10,12 9,2 7,2" fill="currentColor"/><polygon points="10,12 14,12 13,6 11,6" fill="currentColor" opacity="0.7"/></svg></span>
+        <span class="tab-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16"><polygon points="2,12 6,12 5,4 3,4" fill="currentColor" opacity="0.5"/><polygon points="6,12 10,12 9,2 7,2" fill="currentColor"/><polygon points="10,12 14,12 13,6 11,6" fill="currentColor" opacity="0.7"/></svg></span>
         固定面板研究
     </button>
     <button class="tab-btn t-csv" onclick="switchTab('csv-analysis')">
-        <span class="tab-icon"><svg width="14" height="14" viewBox="0 0 16 16"><rect x="1" y="2" width="14" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><line x1="5" y1="2" x2="5" y2="14" stroke="currentColor" stroke-width="1"/><line x1="9" y1="2" x2="9" y2="14" stroke="currentColor" stroke-width="1"/><line x1="1" y1="6" x2="15" y2="6" stroke="currentColor" stroke-width="1"/><line x1="1" y1="10" x2="15" y2="10" stroke="currentColor" stroke-width="1"/></svg></span>
+        <span class="tab-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16"><rect x="1" y="2" width="14" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><line x1="5" y1="2" x2="5" y2="14" stroke="currentColor" stroke-width="1"/><line x1="9" y1="2" x2="9" y2="14" stroke="currentColor" stroke-width="1"/><line x1="1" y1="6" x2="15" y2="6" stroke="currentColor" stroke-width="1"/><line x1="1" y1="10" x2="15" y2="10" stroke="currentColor" stroke-width="1"/></svg></span>
         CSV 進階分析
     </button>
     <button class="tab-btn t-exp" onclick="switchTab('live-monitor')">
-        <span class="tab-icon"><svg width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.5" fill="currentColor"/><circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" stroke-width="1" opacity="0.4"/></svg></span>
+        <span class="tab-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.5" fill="currentColor"/><circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" stroke-width="1" opacity="0.4"/></svg></span>
         即時監控
     </button>
     <button class="tab-btn t-cmp" onclick="switchTab('compare')">
-        <span class="tab-icon"><svg width="14" height="14" viewBox="0 0 16 16"><polyline points="1,12 5,8 9,10 14,3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="5" cy="8" r="1.5" fill="currentColor"/><circle cx="14" cy="3" r="1.5" fill="currentColor"/></svg></span>
+        <span class="tab-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16"><polyline points="1,12 5,8 9,10 14,3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="5" cy="8" r="1.5" fill="currentColor"/><circle cx="14" cy="3" r="1.5" fill="currentColor"/></svg></span>
         發電比較
     </button>
     <button class="tab-btn t-z3a" onclick="switchTab('z3a')">
-        <span class="tab-icon"><svg width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2" fill="currentColor"/><path d="M3,8 a5,5 0 0 1 10,0" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M5,8 a3,3 0 0 1 6,0" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+        <span class="tab-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2" fill="currentColor"/><path d="M3,8 a5,5 0 0 1 10,0" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M5,8 a3,3 0 0 1 6,0" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
         Z3A 採集
     </button>
     <button class="tab-btn t-dl" onclick="switchTab('downloads')">
-        <span class="tab-icon"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M8,1 L8,10 M4,7 L8,11 L12,7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><line x1="2" y1="14" x2="14" y2="14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+        <span class="tab-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M8,1 L8,10 M4,7 L8,11 L12,7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><line x1="2" y1="14" x2="14" y2="14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
         下載中心
     </button>
 </nav>
 
-<div class="main-content">
+<main class="main-content">
 
 <!-- ════════════════════════════════════════════════════════════
      TAB 1 · 總覽 (Overview)
@@ -116,9 +121,9 @@
             <div class="kpi-card kpi-gold">
                 <div class="kpi-medal" aria-hidden="true">
                     <svg width="28" height="28" viewBox="0 0 28 28">
-                        <circle cx="14" cy="14" r="12" fill="#D4A437" stroke="#B8860B" stroke-width="1.2"/>
-                        <circle cx="14" cy="14" r="9" fill="none" stroke="#FBF6E5" stroke-width="0.8"/>
-                        <text x="14" y="18" font-size="11" font-weight="800" fill="#0B1E3F" text-anchor="middle" font-family="Consolas,monospace">1</text>
+                        <circle cx="14" cy="14" r="12" fill="#6750A4" stroke="#5B4791" stroke-width="1.2"/>
+                        <circle cx="14" cy="14" r="9" fill="none" stroke="#EADDFF" stroke-width="0.8"/>
+                        <text x="14" y="18" font-size="11" font-weight="800" fill="#FFFFFF" text-anchor="middle" font-family="Consolas,monospace">1</text>
                     </svg>
                 </div>
                 <div class="kpi-label">最佳角度組合</div>
@@ -246,7 +251,7 @@
             <div class="table-responsive" style="max-height:400px;overflow-y:auto">
                 <table class="data-table">
                     <thead><tr><th>系統</th><th>時間</th><th>功率(W)</th><th>電壓(V)</th><th>電流(A)</th><th>光照(lux)</th><th>溫度(°C)</th></tr></thead>
-                    <tbody id="all-sites-table-body"><tr><td colspan="7" class="text-center py-4 text-muted">載入中…</td></tr></tbody>
+                    <tbody id="all-sites-table-body"><tr><td colspan="7"><div class="skel-stack" aria-label="載入中"><div class="skel"></div><div class="skel" style="width:94%"></div><div class="skel" style="width:97%"></div><div class="skel" style="width:90%"></div><div class="skel" style="width:95%"></div></div></td></tr></tbody>
                 </table>
             </div>
             <div class="d-flex justify-content-between align-items-center mt-3">
@@ -294,7 +299,7 @@
                     <span class="ts-label" id="fp-rank-status">--</span>
                 </div>
                 <div class="card-body" id="fp-rank-body" style="min-height:320px">
-                    <div class="text-muted text-center py-5">載入中…</div>
+                    <div class="skel-stack" aria-label="載入中"><div class="skel" style="width:100%"></div><div class="skel" style="width:93%"></div><div class="skel" style="width:87%"></div><div class="skel" style="width:81%"></div><div class="skel" style="width:74%"></div><div class="skel" style="width:67%"></div><div class="skel" style="width:60%"></div><div class="skel" style="width:54%"></div><div class="skel" style="width:48%"></div><div class="skel" style="width:43%"></div><div class="skel" style="width:38%"></div><div class="skel" style="width:33%"></div></div>
                 </div>
             </div>
         </div>
@@ -308,7 +313,7 @@
                                 方位角效應
                             </h6>
                         </div>
-                        <div class="card-body" style="height:170px;position:relative">
+                        <div class="card-body chart-box" style="--h:170px">
                             <canvas id="fp-azi-chart"></canvas>
                         </div>
                     </div>
@@ -321,7 +326,7 @@
                                 傾角效應
                             </h6>
                         </div>
-                        <div class="card-body" style="height:170px;position:relative">
+                        <div class="card-body chart-box" style="--h:170px">
                             <canvas id="fp-tilt-chart"></canvas>
                         </div>
                     </div>
@@ -348,7 +353,7 @@
                     </h6>
                     <span class="ts-label">理論上應在對角線</span>
                 </div>
-                <div class="card-body" style="height:280px;position:relative">
+                <div class="card-body chart-box" style="--h:280px">
                     <canvas id="fp-ab-chart"></canvas>
                 </div>
             </div>
@@ -365,7 +370,7 @@
                 <div style="overflow-x:auto;max-height:300px">
                     <table class="data-table" id="fp-monthly-table">
                         <thead><tr><th>月份</th><th colspan="12">各面板組平均功率 (W)</th></tr></thead>
-                        <tbody id="fp-monthly-body"><tr><td colspan="13" class="text-center text-muted py-4">載入中…</td></tr></tbody>
+                        <tbody id="fp-monthly-body"><tr><td colspan="13"><div class="skel-stack" aria-label="載入中"><div class="skel"></div><div class="skel" style="width:95%"></div><div class="skel" style="width:91%"></div><div class="skel" style="width:96%"></div></div></td></tr></tbody>
                     </table>
                 </div>
             </div>
@@ -388,7 +393,7 @@
             </h6>
             <span class="ts-label" id="fp-monthly-total-status">--</span>
         </div>
-        <div class="card-body" style="height:300px;position:relative">
+        <div class="card-body chart-box" style="--h:300px">
             <canvas id="fp-monthly-total-chart"></canvas>
         </div>
     </div>
@@ -414,7 +419,7 @@
                 <span class="ts-label" id="fp-day-status">--</span>
             </div>
         </div>
-        <div class="card-body"><div style="height:320px;position:relative"><canvas id="fp-day-chart"></canvas></div></div>
+        <div class="card-body"><div class="chart-box" style="--h:320px"><canvas id="fp-day-chart"></canvas></div></div>
         <div style="overflow-x:auto;padding:0 16px 16px">
             <table class="data-table">
                 <thead><tr><th>面板</th><th>傾角</th><th>方位角</th><th>當日發電量 (Wh)</th></tr></thead>
@@ -448,13 +453,13 @@
         <div class="col-lg-7">
             <div class="card card-accent" style="--accent: var(--navy-3)">
                 <div class="card-hdr"><h6>月均小時功率曲線（依組別）</h6><span class="ts-label" id="fp-curve-month-label">--</span></div>
-                <div class="card-body"><div style="height:280px;position:relative"><canvas id="fp-curve-chart"></canvas></div></div>
+                <div class="card-body"><div class="chart-box" style="--h:280px"><canvas id="fp-curve-chart"></canvas></div></div>
             </div>
         </div>
         <div class="col-lg-5">
             <div class="card card-accent" style="--accent: var(--navy-3)">
                 <div class="card-hdr"><h6>每日平均功率</h6><span class="ts-label" id="fp-daily-month-label">--</span></div>
-                <div class="card-body"><div style="height:280px;position:relative"><canvas id="fp-daily-chart"></canvas></div></div>
+                <div class="card-body"><div class="chart-box" style="--h:280px"><canvas id="fp-daily-chart"></canvas></div></div>
             </div>
         </div>
     </div>
@@ -547,7 +552,7 @@
                 <div class="col-lg-9">
                     <div class="card card-accent" style="--accent: var(--navy-3)">
                         <div class="card-hdr"><h6>日間發電曲線比較（10 分鐘解析度）</h6><span class="ts-label" id="csv-date-chart-label">--</span></div>
-                        <div class="card-body"><div style="height:440px;position:relative"><canvas id="csv-date-chart"></canvas></div></div>
+                        <div class="card-body"><div class="chart-box" style="--h:440px"><canvas id="csv-date-chart"></canvas></div></div>
                     </div>
                 </div>
             </div>
@@ -580,7 +585,7 @@
                 <div class="col-lg-9">
                     <div class="card card-accent" style="--accent: var(--navy-3)">
                         <div class="card-hdr"><h6>各面板日間發電曲線（含照度）</h6><span class="ts-label" id="csv-panel-chart-label">--</span></div>
-                        <div class="card-body"><div style="height:440px;position:relative"><canvas id="csv-panel-chart"></canvas></div></div>
+                        <div class="card-body"><div class="chart-box" style="--h:440px"><canvas id="csv-panel-chart"></canvas></div></div>
                     </div>
                 </div>
             </div>
@@ -606,7 +611,7 @@
                 <div class="col-lg-9">
                     <div class="card card-accent" style="--accent: var(--navy-3)">
                         <div class="card-hdr"><h6 id="csv-stats-chart-title">月度統計</h6></div>
-                        <div class="card-body"><div style="height:440px;position:relative"><canvas id="csv-stats-chart"></canvas></div></div>
+                        <div class="card-body"><div class="chart-box" style="--h:440px"><canvas id="csv-stats-chart"></canvas></div></div>
                     </div>
                 </div>
             </div>
@@ -651,7 +656,7 @@
     <div class="section-hdr">
         <div>
             <div class="section-title">發電比較 · 實驗組 vs 對照組</div>
-            <div class="section-sub">即時功率對比與最新 30 筆趨勢（追日實機未上線前數值可能為 --）</div>
+            <div class="section-sub">即時功率對比與全日趨勢（04:00–20:00 · 10 分鐘解析度）</div>
         </div>
         <span class="ts-label" id="compare-update-time">--</span>
     </div>
@@ -659,10 +664,16 @@
     <div class="row g-3 mb-4">
         <div class="col-12">
             <div class="card card-accent" style="--accent: var(--navy-3)">
-                <div class="card-hdr">
-                    <h6>功率趨勢比較（最近 30 筆）</h6>
+                <div class="card-hdr d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <h6 class="m-0">功率趨勢比較 · 全日 04:00 – 20:00</h6>
+                    <div class="d-flex align-items-center gap-2" role="group" aria-label="日期切換">
+                        <button class="btn btn-sm btn-outline-secondary" id="cmp-day-prev" aria-label="前一天" title="前一天">←</button>
+                        <span id="cmp-day-label" class="fw-bold" style="min-width:120px;text-align:center;font-family:'JetBrains Mono','Consolas',monospace">--</span>
+                        <button class="btn btn-sm btn-outline-secondary" id="cmp-day-next" aria-label="後一天" title="後一天">→</button>
+                        <button class="btn btn-sm btn-primary" id="cmp-day-today" title="跳回今天">今天</button>
+                    </div>
                 </div>
-                <div class="card-body"><div style="height:300px;position:relative"><canvas id="compare-line-chart"></canvas></div></div>
+                <div class="card-body"><div class="chart-box" style="--h:300px"><canvas id="compare-line-chart"></canvas></div></div>
             </div>
         </div>
     </div>
@@ -670,7 +681,7 @@
         <div class="col-lg-5">
             <div class="card card-accent" style="--accent: var(--navy-3)">
                 <div class="card-hdr"><h6>即時功率比較</h6></div>
-                <div class="card-body"><div style="height:280px;position:relative"><canvas id="compare-bar-chart"></canvas></div></div>
+                <div class="card-body"><div class="chart-box" style="--h:280px"><canvas id="compare-bar-chart"></canvas></div></div>
             </div>
         </div>
         <div class="col-lg-7">
@@ -723,7 +734,7 @@
 
     <div class="row g-3">
         <div class="col-lg-3">
-            <div class="card card-accent h-100" style="--accent: var(--rose);min-height:500px;display:flex;flex-direction:column">
+            <div class="card card-accent h-100" style="--accent: var(--navy-3);min-height:500px;display:flex;flex-direction:column">
                 <div class="card-hdr">
                     <h6>裝置清單</h6>
                     <button class="btn btn-sm btn-outline-secondary" onclick="z3aLoadDevices()" style="font-size:.75rem">刷新</button>
@@ -735,21 +746,21 @@
                         <button class="btn btn-sm btn-primary" onclick="z3aFetchSelected()" style="font-size:.75rem">載入</button>
                     </div>
                     <div id="z3a-device-list" style="font-size:.8rem">
-                        <div class="text-muted text-center py-4">載入裝置中…</div>
+                        <div class="skel-stack" aria-label="載入裝置中"><div class="skel"></div><div class="skel" style="width:88%"></div><div class="skel" style="width:93%"></div><div class="skel" style="width:80%"></div><div class="skel" style="width:90%"></div><div class="skel" style="width:84%"></div></div>
                     </div>
                 </div>
                 <div style="padding:8px;border-top:1px solid var(--line-1);font-size:.72rem;color:var(--ink-5)" id="z3a-device-count">-- 個裝置</div>
             </div>
         </div>
         <div class="col-lg-9">
-            <div class="card card-accent mb-3" style="--accent: var(--rose)">
+            <div class="card card-accent mb-3" style="--accent: var(--navy-3)">
                 <div class="card-hdr">
                     <h6 id="z3a-chart-title">Z3A 歷史趨勢</h6>
                     <span class="ts-label" id="z3a-chart-status">請選擇裝置後按「載入」</span>
                 </div>
-                <div class="card-body"><div style="height:380px;position:relative"><canvas id="z3a-main-chart"></canvas></div></div>
+                <div class="card-body"><div class="chart-box" style="--h:380px"><canvas id="z3a-main-chart"></canvas></div></div>
             </div>
-            <div class="card card-accent" style="--accent: var(--rose)">
+            <div class="card card-accent" style="--accent: var(--navy-3)">
                 <div class="card-hdr"><h6>數據摘要</h6></div>
                 <div style="overflow-x:auto;max-height:240px">
                     <table class="data-table">
@@ -858,14 +869,14 @@
 
 </div><!-- /tab-downloads -->
 
-</div><!-- /main-content -->
+</main><!-- /main-content -->
 
-<div class="app-footer">
+<footer class="app-footer">
     <span class="gold-dash">·</span>
     碩士論文研究平台 · ANFIS 智慧追日 vs 差分感測對照實驗
     <span class="gold-dash">·</span>
     Chung Yu-Ching · 2026
-</div>
+</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
@@ -885,6 +896,11 @@
 /* ═════════ §1 常數 / 工具 ════════════════════════════════════════════════ */
 const API = '/api';
 const REFRESH_MS = 5000;
+
+// Chart.js 全域字體對齊 design system
+if (typeof Chart !== 'undefined') {
+    Chart.defaults.font.family = "'Outfit','Noto Sans TC','Microsoft JhengHei',sans-serif";
+}
 
 // 系統 metadata（保留舊代號相容性）
 const SYSTEMS = [
@@ -936,9 +952,9 @@ updateClock(); setInterval(updateClock, 1000);
 
 function switchTab(tabId) {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('active'); b.removeAttribute('aria-current'); });
     const pane = $('tab-' + tabId); if (pane) pane.classList.add('active');
-    document.querySelectorAll(`button[onclick="switchTab('${tabId}')"]`).forEach(b => b.classList.add('active'));
+    document.querySelectorAll(`button[onclick="switchTab('${tabId}')"]`).forEach(b => { b.classList.add('active'); b.setAttribute('aria-current', 'page'); });
     // tab-specific init
     if (tabId === 'overview') refreshOverview();
     else if (tabId === 'live-monitor') liveSelect(currentLiveSys);
@@ -1180,7 +1196,7 @@ function buildSysPanel(sys) {
         <div class="col-lg-5">
             <div class="card card-accent" style="--accent:${sys.color}">
                 <div class="card-hdr"><h6>功率趨勢（最近 20 筆）</h6></div>
-                <div class="card-body"><div style="height:220px;position:relative"><canvas id="s${p}-tc"></canvas></div></div>
+                <div class="card-body"><div class="chart-box" style="--h:220px"><canvas id="s${p}-tc"></canvas></div></div>
             </div>
         </div>
         <div class="col-lg-7">
@@ -1284,17 +1300,54 @@ async function loadRecTable(sysId) {
 }
 
 /* ═════════ §5 發電比較 (Compare) ═════════════════════════════════════════ */
+/* 線圖：橫軸固定 04:00–20:00，10 分鐘 slot；可切換日期。
+   只讀 PowerRecord（樹莓派上傳，system_id 1-4），不會混到 Z3A tracking 資料。
+   今天 → 持續輪詢補點；過去日期 → 一次性載入歷史紀錄。 */
 let cmpLineChart = null, cmpBarChart = null;
+let cmpSelectedDate = null;   // 'YYYY-MM-DD'（本地時區）
+const CMP_DAY_START_H = 4, CMP_DAY_END_H = 20, CMP_SLOT_MIN = 10;
+const CMP_SLOTS = (CMP_DAY_END_H - CMP_DAY_START_H) * 60 / CMP_SLOT_MIN + 1; // 97
+
+function cmpTodayStr() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function cmpIsToday() { return cmpSelectedDate === cmpTodayStr(); }
+function cmpSlotLabels() {
+    const out = [];
+    for (let i = 0; i < CMP_SLOTS; i++) {
+        const t = CMP_DAY_START_H * 60 + i * CMP_SLOT_MIN;
+        out.push(`${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`);
+    }
+    return out;
+}
+function cmpSlotIdxFromDate(ts) {
+    const m = ts.getHours() * 60 + ts.getMinutes();
+    const s = CMP_DAY_START_H * 60, e = CMP_DAY_END_H * 60;
+    if (m < s || m > e) return -1;
+    return Math.round((m - s) / CMP_SLOT_MIN);
+}
+
 function initCompareCharts() {
     if (cmpLineChart) return;
     const clCtx = $('compare-line-chart');
     if (clCtx) {
         cmpLineChart = new Chart(clCtx, {
             type: 'line',
-            data: { labels: [], datasets: SYSTEMS.map(s => ({ label: s.name, data: [], borderColor: s.color, backgroundColor: 'transparent', tension: 0.35, pointRadius: 2, borderWidth: 2 })) },
+            data: {
+                labels: cmpSlotLabels(),
+                datasets: SYSTEMS.map(s => ({
+                    label: s.name, data: new Array(CMP_SLOTS).fill(null),
+                    borderColor: s.color, backgroundColor: 'transparent',
+                    tension: 0, pointRadius: 2, borderWidth: 2, spanGaps: true,
+                }))
+            },
             options: { responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8, font: { size: 12 } } } },
-                scales: { y: { beginAtZero: true, grid: { color: '#F1F5F9' } }, x: { grid: { display: false }, ticks: { font: { size: 10 } } } } }
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#F1F5F9' }, title: { display: true, text: '功率 (W)' } },
+                    x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 17 } }
+                } }
         });
     }
     const cbCtx = $('compare-bar-chart');
@@ -1307,8 +1360,71 @@ function initCompareCharts() {
         });
     }
 }
+
+async function cmpLoadDay(dateStr) {
+    cmpSelectedDate = dateStr;
+    setEl('cmp-day-label', dateStr);
+    initCompareCharts();
+    if (!cmpLineChart) return;
+
+    // 清空所有 slot
+    SYSTEMS.forEach((sys, i) => {
+        cmpLineChart.data.datasets[i].data = new Array(CMP_SLOTS).fill(null);
+    });
+    cmpLineChart.update('none');
+
+    // 逐系統撈當日紀錄（PowerRecord 表 = 樹莓派上傳，不會混 Z3A）
+    // 後端 PageNumberPagination 固定 PAGE_SIZE=20 且未開放 ?page_size 參數，
+    // 一天最多 ~144 筆 → 走 page=1..N 直到 next=null（safety cap 20 頁）
+    await Promise.all(SYSTEMS.map(async (sys, i) => {
+        try {
+            let page = 1;
+            for (let safety = 0; safety < 20; safety++) {
+                const url = `${API}/power-records/?system=${sys.id}&start_date=${dateStr}&end_date=${dateStr}&ordering=timestamp&page=${page}`;
+                const resp = await fetch(url);
+                if (!resp.ok) break;
+                const data = await resp.json();
+                const records = data.results || data;
+                for (const r of records) {
+                    if (!r.timestamp) continue;
+                    const ts = new Date(r.timestamp);
+                    const idx = cmpSlotIdxFromDate(ts);
+                    if (idx < 0) continue;
+                    const pwr = parseFloat(r.power_output);
+                    if (!isNaN(pwr)) cmpLineChart.data.datasets[i].data[idx] = pwr;
+                }
+                if (!data.next) break;
+                page++;
+            }
+        } catch (e) { /* 忽略單系統錯誤 */ }
+    }));
+    cmpLineChart.update();
+}
+
+function cmpShiftDay(deltaDays) {
+    const base = cmpSelectedDate || cmpTodayStr();
+    const [y, m, d] = base.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    dt.setDate(dt.getDate() + deltaDays);
+    const newStr = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+    cmpLoadDay(newStr);
+}
+
+function cmpBindDayButtons() {
+    const prev = $('cmp-day-prev'), next = $('cmp-day-next'), today = $('cmp-day-today');
+    if (prev && !prev.dataset.bound) { prev.dataset.bound = '1'; prev.addEventListener('click', () => cmpShiftDay(-1)); }
+    if (next && !next.dataset.bound) { next.dataset.bound = '1'; next.addEventListener('click', () => cmpShiftDay(1)); }
+    if (today && !today.dataset.bound) { today.dataset.bound = '1'; today.addEventListener('click', () => cmpLoadDay(cmpTodayStr())); }
+}
+
 async function refreshCompare() {
     initCompareCharts();
+    cmpBindDayButtons();
+    // 首次進入：預設今天 + 載入當日歷史紀錄
+    if (cmpSelectedDate === null) {
+        await cmpLoadDay(cmpTodayStr());
+    }
+
     const powers = [], rows = [], tbody = $('compare-table-body');
     for (const sys of SYSTEMS) {
         try {
@@ -1318,6 +1434,16 @@ async function refreshCompare() {
             powers.push(pwr);
             const bc = sys.type === 'exp' ? 'badge-exp' : 'badge-ctrl', oc = online ? 'ob-on' : 'ob-off', ot = online ? '連線中' : '離線';
             rows.push(`<tr><td><span class="${bc}">${sys.name}</span></td><td class="fw-bold" style="color:${sys.color}">${pwr.toFixed(2)}</td><td>${d.ns_actuator_angle?.toFixed(1) ?? '--'}</td><td>${d.ew_actuator_angle?.toFixed(1) ?? '--'}</td><td><span class="ob ${oc}"><span class="dot"></span>${ot}</span></td></tr>`);
+
+            // 若選的是今天，把最新值補到對應 10 分鐘 slot
+            if (cmpIsToday() && cmpLineChart && online && d.timestamp) {
+                const ts = new Date(d.timestamp);
+                const idx = cmpSlotIdxFromDate(ts);
+                if (idx >= 0) {
+                    const sysIdx = SYSTEMS.findIndex(s => s.id === sys.id);
+                    if (sysIdx >= 0) cmpLineChart.data.datasets[sysIdx].data[idx] = pwr;
+                }
+            }
         } catch {
             powers.push(0);
             const bc = sys.type === 'exp' ? 'badge-exp' : 'badge-ctrl';
@@ -1326,12 +1452,8 @@ async function refreshCompare() {
     }
     if (tbody) tbody.innerHTML = rows.join('');
     if (cmpBarChart) { cmpBarChart.data.datasets[0].data = powers; cmpBarChart.update(); }
-    if (cmpLineChart) {
-        const label = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        cmpLineChart.data.labels.push(label); if (cmpLineChart.data.labels.length > 30) cmpLineChart.data.labels.shift();
-        SYSTEMS.forEach((sys, i) => { cmpLineChart.data.datasets[i].data.push(powers[i]); if (cmpLineChart.data.datasets[i].data.length > 30) cmpLineChart.data.datasets[i].data.shift(); });
-        cmpLineChart.update('none');
-    }
+    if (cmpLineChart && cmpIsToday()) cmpLineChart.update('none');
+
     setEl('compare-update-time', '更新: ' + new Date().toLocaleTimeString('zh-TW'));
 }
 
@@ -1554,7 +1676,7 @@ async function fpLoadMonthly() {
                 else if (pct > 0.75) { bg = `rgba(26,53,99,${(0.5 + pct * 0.4).toFixed(2)})`; color = '#fff'; }
                 else if (pct > 0.45) { bg = `rgba(59,90,143,${(0.25 + pct * 0.45).toFixed(2)})`; color = pct > 0.6 ? '#fff' : '#0B1E3F'; }
                 else { bg = `rgba(148,168,198,${(0.15 + pct * 0.4).toFixed(2)})`; color = '#0B1E3F'; }
-                return `<td style="background:${bg};color:${color};font-weight:700;font-family:Consolas,monospace">${v.toFixed(1)}</td>`;
+                return `<td style="background:${bg};color:${color};font-weight:700;font-family:var(--font-mono)">${v.toFixed(1)}</td>`;
             }).join('');
             return `<tr><td style="white-space:nowrap;font-weight:600">${m}</td>${cells}</tr>`;
         }).join('');
@@ -1648,12 +1770,15 @@ const CSV_COLORS = ['#1A3563', '#D4A437', '#0F766E', '#BE123C', '#7C3AED', '#028
                     '#2C4D85', '#B45309', '#0E7490', '#86198F', '#3B5A8F', '#A16207', '#15803D', '#581C87',
                     '#1D4ED8', '#854D0E', '#0891B2', '#A21CAF'];
 let csvDf = [], csvCurrentYear = null, csvCurrentMonth = null;
+let csvLoading = false;   // 防止載入中切換頁籤觸發第二次 49MB 下載
 let csvCurrentMonthData = [], csvDayStates = {}, csvPanelStates = {};
 let csvSelectedPanelDay = null;
 let csvDateChart2 = null, csvPanelChart2 = null, csvStatsChart2 = null;
 
 async function csvAutoLoad() {
-    if (csvDf.length > 0) return;
+    if (csvDf.length > 0 || csvLoading) return;   // 已載入或載入中都不重複抓
+    csvLoading = true;
+    try {
     const statusEl = $('csv-auto-status');
     function setStatus(html) { if (statusEl) statusEl.innerHTML = html; }
     for (let attempt = 1; attempt <= 8; attempt++) {
@@ -1678,7 +1803,7 @@ async function csvAutoLoad() {
             let pos = 0; for (const c of chunks) { merged.set(c, pos); pos += c.length; }
             const text = new TextDecoder('utf-8').decode(merged);
             setStatus('<span style="color:var(--success)">✓ 伺服器資料</span>');
-            csvParseAndProcess(text, 'fixed_panel_data.csv');
+            await csvParseAndProcess(text, 'fixed_panel_data.csv');
             return;
         } catch (e) {
             if (attempt < 8) {
@@ -1691,6 +1816,7 @@ async function csvAutoLoad() {
             }
         }
     }
+    } finally { csvLoading = false; }
 }
 
 function csvLoadFile(event) {
@@ -1726,8 +1852,12 @@ function csvParseCSV(text) {
     return rows;
 }
 
-function csvParseAndProcess(text, filename) {
+async function csvParseAndProcess(text, filename) {
     try {
+        // 解析 ~75 萬列會同步佔用主執行緒數秒；先顯示提示並讓瀏覽器繪製一次，
+        // 避免畫面看起來「卡死」（使用者以為當掉）。
+        setEl('csv-status', '解析中…（資料量大，約需數秒，請稍候）');
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
         const rows = csvParseCSV(text);
         if (!rows.length) { setEl('csv-status', '無法解析 CSV，請確認格式'); return; }
         csvDf = rows.map(row => {
@@ -1916,9 +2046,9 @@ function csvGeneratePanelPlot() {
             return { type: 'line', yAxisID: 'y', label: p, data, borderColor: color, backgroundColor: 'transparent', tension: 0.2, pointRadius: 1, borderWidth: 1.5, spanGaps: false, order: i + 1 };
         });
     }
-    // 照度柱狀圖（粉色，呼應論文常見的太陽輻照度表示）
+    // 照度柱狀圖（金色低飽和，呼應日照語意並貼合 navy/gold 配色系統）
     datasets.push({ type: 'bar', yAxisID: 'y2', label: 'Illumination (W/m²)', data: illumData,
-        backgroundColor: 'rgba(244, 114, 182, 0.25)', borderColor: 'rgba(244, 114, 182, 0.5)',
+        backgroundColor: 'rgba(212, 164, 55, 0.22)', borderColor: 'rgba(184, 134, 11, 0.45)',
         borderWidth: 1, borderRadius: 2, order: 99 });
     const ctx = $('csv-panel-chart'); if (!ctx) return;
     const existing = Chart.getChart(ctx); if (existing) existing.destroy();
@@ -2054,7 +2184,7 @@ async function z3aRefreshToken() {
 }
 
 async function z3aLoadDevices() {
-    $('z3a-device-list').innerHTML = '<div class="text-muted text-center py-3">載入中…</div>';
+    $('z3a-device-list').innerHTML = '<div class="skel-stack" aria-label="載入中"><div class="skel"></div><div class="skel" style="width:88%"></div><div class="skel" style="width:93%"></div><div class="skel" style="width:80%"></div></div>';
     try {
         const r = await fetch(`${API}/z3a/devices/`); const d = await r.json();
         const list = d.data || d || [];
@@ -2062,18 +2192,43 @@ async function z3aLoadDevices() {
         list.forEach(dev => { z3aDeviceStates[dev.DeviceId] = false; });
         setEl('z3a-device-count', `${list.length} 個裝置`);
         const container = $('z3a-device-list');
-        if (!list.length) { container.innerHTML = '<div class="text-muted text-center py-3">無裝置資料</div>'; return; }
-        container.innerHTML = list.map(dev => {
-            const sid = 'z3a-cb-' + dev.DeviceId.replace(/[^a-z0-9]/gi, '_');
-            return `<div style="padding:3px 0;border-bottom:1px solid var(--line-2)">
-                <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-                    <input type="checkbox" id="${sid}" onchange="z3aDeviceStates['${dev.DeviceId}']=this.checked" style="flex-shrink:0">
-                    <span style="font-size:.8rem;font-weight:600;color:var(--navy-1)">${dev.DeviceId}</span>
-                    <span style="font-size:.7rem;color:var(--ink-5)">${dev.Alias || dev.DeviceName || ''}</span>
-                </label></div>`;
-        }).join('');
+        container.textContent = '';
+        if (!list.length) {
+            const empty = document.createElement('div');
+            empty.className = 'text-muted text-center py-3';
+            empty.textContent = '無裝置資料';
+            container.appendChild(empty);
+            return;
+        }
+        // 用 DOM API（textContent / addEventListener）建構，而非字串拼 innerHTML，
+        // 避免裝置欄位（來自外部 IoT 雲端）含特殊字元時造成 XSS / 版面破壞。
+        list.forEach(dev => {
+            const sid = 'z3a-cb-' + String(dev.DeviceId).replace(/[^a-z0-9]/gi, '_');
+            const row = document.createElement('div');
+            row.style.cssText = 'padding:3px 0;border-bottom:1px solid var(--line-2)';
+            const label = document.createElement('label');
+            label.style.cssText = 'display:flex;align-items:center;gap:6px;cursor:pointer';
+            const cb = document.createElement('input');
+            cb.type = 'checkbox'; cb.id = sid; cb.style.flexShrink = '0';
+            cb.addEventListener('change', () => { z3aDeviceStates[dev.DeviceId] = cb.checked; });
+            const idSpan = document.createElement('span');
+            idSpan.style.cssText = 'font-size:.8rem;font-weight:600;color:var(--navy-1)';
+            idSpan.textContent = dev.DeviceId;
+            const aliasSpan = document.createElement('span');
+            aliasSpan.style.cssText = 'font-size:.7rem;color:var(--ink-5)';
+            aliasSpan.textContent = dev.Alias || dev.DeviceName || '';
+            label.append(cb, idSpan, aliasSpan);
+            row.appendChild(label);
+            container.appendChild(row);
+        });
     } catch (e) {
-        $('z3a-device-list').innerHTML = `<div class="text-danger text-center py-3" style="font-size:.8rem">載入失敗：${e.message}</div>`;
+        const container = $('z3a-device-list');
+        container.textContent = '';
+        const err = document.createElement('div');
+        err.className = 'text-danger text-center py-3';
+        err.style.fontSize = '.8rem';
+        err.textContent = '載入失敗：' + e.message;
+        container.appendChild(err);
     }
 }
 
