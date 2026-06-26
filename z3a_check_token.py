@@ -37,10 +37,13 @@ def days_left(token, now):
 def token_can_query_devices(base_url, token):
     if not token:
         return False
+    # 雲端目前需 'Bearer ' 前綴，預設 true；可在 .env.dev 用 Z3A_USE_BEARER_PREFIX=false 切換
+    use_bearer = env.get("Z3A_USE_BEARER_PREFIX", "true").lower() in ("1", "true", "yes")
+    auth = f"Bearer {token}" if use_bearer else token
     try:
         r = requests.get(
             base_url.rstrip("/") + "/bind/query",
-            headers={"auth": token},
+            headers={"auth": auth},
             verify=False,
             timeout=10,
         )

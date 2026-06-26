@@ -213,10 +213,10 @@ def _refresh_with_token2(refresh_token: str) -> str | None:
         data_body = None
         try:
             if mode == "header_auth":
-                headers["auth"] = TOKEN
+                headers["auth"] = _auth_value(TOKEN)
                 data_body = body
             elif mode == "header_auth_t2_only":
-                headers["auth"] = refresh_token
+                headers["auth"] = _auth_value(refresh_token)
             elif mode == "form_t2":
                 data_body = {"refreshToken": refresh_token}
             if data_body is not None:
@@ -252,7 +252,7 @@ def _token_can_query_devices(candidate_token: str) -> bool:
     try:
         r = requests.get(
             f"{BASE_URL}/bind/query",
-            headers={"auth": candidate_token},
+            headers={"auth": _auth_value(candidate_token)},
             verify=False,
             timeout=10,
         )
@@ -320,8 +320,15 @@ def _ensure_valid_token() -> bool:
     return False
 
 
+def _auth_value(tok: str) -> str:
+    """根據 Z3A_USE_BEARER_PREFIX 決定 auth 標頭值。
+    你的雲端（server.qiyunwulian.com）需要 'Bearer ' 前綴，預設 true。"""
+    use_bearer = os.environ.get("Z3A_USE_BEARER_PREFIX", "true").lower() in ("1", "true", "yes")
+    return f"Bearer {tok}" if use_bearer else tok
+
+
 def _headers() -> dict:
-    return {"auth": TOKEN}
+    return {"auth": _auth_value(TOKEN)}
 
 
 # ════════════════════════════════════════════════════════════════════════════════

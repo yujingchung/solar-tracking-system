@@ -105,8 +105,16 @@ def _get_token() -> str:
     return _token
 
 
+def _auth_value(token: str) -> str:
+    """根據 Z3A_USE_BEARER_PREFIX 決定 auth 標頭值。
+    你的雲端（server.qiyunwulian.com）需要 'Bearer ' 前綴，預設 true。
+    若雲端版本升級後改成接受裸 token，將環境變數設為 false 即可。"""
+    use_bearer = os.environ.get("Z3A_USE_BEARER_PREFIX", "true").lower() in ("1", "true", "yes")
+    return f"Bearer {token}" if use_bearer else token
+
+
 def _headers() -> dict:
-    return {"auth": _get_token()}
+    return {"auth": _auth_value(_get_token())}
 
 
 def _err(msg, status=500):
