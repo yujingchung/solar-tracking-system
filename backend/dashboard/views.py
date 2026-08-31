@@ -48,8 +48,8 @@ class PowerRecordViewSet(viewsets.ModelViewSet):
                 # 如果system_id不是有效整數，返回空查詢集
                 queryset = queryset.none()
         
-        # 日期範圍過濾 - 預設查詢最近 7 天
-        days = self.request.query_params.get('days', '7')
+        # 日期範圍過濾 - 預設查詢最近 30 天(原 7 天太短,真實期資料常被截)
+        days = self.request.query_params.get('days', '30')
         start_date = self.request.query_params.get('start_date', None)
         end_date = self.request.query_params.get('end_date', None)
         
@@ -110,71 +110,97 @@ class PowerRecordViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def export_csv(self, request):
-        """匯出CSV格式的數據記錄"""
+        """匯出CSV格式的數據記錄
+
+        2026-06-22 修正:
+        - Bug 2:時間轉成 Asia/Taipei localtime(原本輸出 UTC)
+        - Bug 3:取消 1000 筆硬限制(改 100k 安全上限),預設 days=7 改成 days=30
+        - Bug 4:加 4 方位 LDR 獨立欄位(light_north / east / west / south)
+        - Bug 5:0 不再被當成 None 寫成空字串(用 `is not None` 判斷)
+        """
         import csv
         from django.http import HttpResponse
+        from django.utils.timezone import localtime
         from datetime import datetime
-        
+
+        # 助手:0 寫 "0.00" 不寫空;None 才寫空
+        def fmt(value, spec=".2f"):
+            return f"{value:{spec}}" if value is not None else ''
+
         try:
             system_id = request.query_params.get('system')
             queryset = self.get_queryset()
-            
+
             if system_id:
                 try:
                     system_id = int(system_id)
                     queryset = queryset.filter(system_id=system_id)
                 except (ValueError, TypeError):
                     pass
-            
+
             # 建立HTTP response with CSV content type
             response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             response['Content-Disposition'] = f'attachment; filename="power_records_{timestamp}.csv"'
-            
+
             writer = csv.writer(response)
-            
-            # CSV標頭
+
+            # CSV標頭(加 4 方位 LDR + 電池端 V/I/P 2026-06-23 + SOC 2026-06-25)
             writer.writerow([
-                '時間戳',
+                '時間戳(CST)',
                 '系統',
-                '太陽能板電壓(V)', '太陽能板電流(A)', '太陽能板功率(W)',
+                'PV電壓(V)', 'PV電流(A)', 'PV功率(W)',
+                '電池電壓(V)', '電池電流(A)', '電池功率(W)', '電池SOC(%)',
                 '樹莓派電壓(V)', '樹莓派電流(mA)', '樹莓派功率(W)',
                 '南北推桿角度(°)', '南北推桿伸展(mm)',
                 '東西推桿角度(°)', '東西推桿伸展(mm)',
                 '推桿總電壓(V)', '推桿總電流(mA)', '推桿總功率(W)',
-                '光照強度(lux)', '溫度(°C)', '濕度(%)',
+                '光照強度平均(lux)', '北方LDR(lux)', '東方LDR(lux)',
+                '西方LDR(lux)', '南方LDR(lux)',
+                '面板傾角(°)', '面板方位角(°)',
+                '溫度(°C)', '濕度(%)',
                 '備註'
             ])
-            
-            # 寫入數據
-            for record in queryset[:1000]:  # 限制最多1000筆
+
+            # 寫入數據(取消 1000 限制,改 100k 安全上限)
+            for record in queryset[:100000]:
                 writer.writerow([
-                    record.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                    localtime(record.timestamp).strftime("%Y-%m-%d %H:%M:%S"),
                     record.system.name if record.system else '',
-                    f"{record.voltage:.2f}" if record.voltage else '',
-                    f"{record.current:.3f}" if record.current else '',
-                    f"{record.power_output:.2f}" if record.power_output else '',
-                    f"{record.raspberry_pi_voltage:.2f}" if record.raspberry_pi_voltage else '',
-                    f"{record.raspberry_pi_current:.1f}" if record.raspberry_pi_current else '',
-                    f"{record.raspberry_pi_power:.2f}" if record.raspberry_pi_power else '',
-                    f"{record.ns_actuator_angle:.1f}" if record.ns_actuator_angle else '',
-                    f"{record.ns_actuator_extension:.0f}" if record.ns_actuator_extension else '',
-                    f"{record.ew_actuator_angle:.1f}" if record.ew_actuator_angle else '',
-                    f"{record.ew_actuator_extension:.0f}" if record.ew_actuator_extension else '',
-                    f"{record.actuator_total_voltage:.2f}" if record.actuator_total_voltage else '',
-                    f"{record.actuator_total_current:.1f}" if record.actuator_total_current else '',
-                    f"{record.actuator_total_power:.2f}" if record.actuator_total_power else '',
-                    f"{record.light_intensity:.1f}" if record.light_intensity else '',
-                    f"{record.temperature:.1f}" if record.temperature else '',
-                    f"{record.humidity:.1f}" if record.humidity else '',
+                    fmt(record.voltage, ".2f"),
+                    fmt(record.current, ".3f"),
+                    fmt(record.power_output, ".2f"),
+                    fmt(record.battery_voltage, ".2f"),
+                    fmt(record.battery_current, ".3f"),
+                    fmt(record.battery_power, ".2f"),
+                    fmt(record.battery_soc, ".0f"),
+                    fmt(record.raspberry_pi_voltage, ".2f"),
+                    fmt(record.raspberry_pi_current, ".1f"),
+                    fmt(record.raspberry_pi_power, ".2f"),
+                    fmt(record.ns_actuator_angle, ".1f"),
+                    fmt(record.ns_actuator_extension, ".0f"),
+                    fmt(record.ew_actuator_angle, ".1f"),
+                    fmt(record.ew_actuator_extension, ".0f"),
+                    fmt(record.actuator_total_voltage, ".2f"),
+                    fmt(record.actuator_total_current, ".1f"),
+                    fmt(record.actuator_total_power, ".2f"),
+                    fmt(record.light_intensity, ".1f"),
+                    fmt(record.light_north, ".1f"),
+                    fmt(record.light_east, ".1f"),
+                    fmt(record.light_west, ".1f"),
+                    fmt(record.light_south, ".1f"),
+                    fmt(record.panel_tilt, ".2f"),
+                    fmt(record.panel_azimuth, ".2f"),
+                    fmt(record.temperature, ".1f"),
+                    fmt(record.humidity, ".1f"),
                     record.notes or ''
                 ])
-            
+
             return response
-            
+
         except Exception as e:
             return Response(
-                {"error": f"匯出失敗: {str(e)}"}, 
+                {"error": f"匯出失敗: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 

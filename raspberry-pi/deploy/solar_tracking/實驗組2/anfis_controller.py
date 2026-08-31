@@ -63,14 +63,22 @@ try:
 except ImportError:
     HARDWARE_AVAILABLE = False
 
-# ── ANFIS 模型導入（需 tensorflow）──────────────────────────────
+# ── LDR 模組(spidev + channel calibration + median 抗噪)─────────
+try:
+    from ldr_module import LDRReader
+    LDR_MODULE_AVAILABLE = True
+except ImportError:
+    LDR_MODULE_AVAILABLE = False
+
+# ── ANFIS 模型導入（需 tensorflow + 自訂 SimpleFuzzyLayer）─────
 try:
     import tensorflow as tf
     import joblib
+    from anfis_layer import SimpleFuzzyLayer   # Keras 3 用 custom_objects 載入
     ANFIS_AVAILABLE = True
 except ImportError:
     ANFIS_AVAILABLE = False
-    print("警告：TensorFlow 未安裝，將使用模擬預測")
+    print("警告：TensorFlow / anfis_layer 未安裝，將使用模擬預測")
 
 # ════════════════════════════════════════════════════════════════
 # 設定
@@ -82,6 +90,12 @@ CONFIG = {
 
     # 模擬模式（True = 允許在無硬體環境下以隨機值測試；False = 生產模式，硬體失敗直接拋例外）
     'simulation_mode': False,
+
+    # 分項模擬旗標（None = 跟隨 simulation_mode;True/False = 個別覆蓋)
+    # 用途:LDR 已裝、但 MPPT/推桿尚未時,設 simulate_ldr=False 同時 simulation_mode=True
+    'simulate_ldr':      None,    # None / True / False
+    'simulate_mppt':     None,
+    'simulate_actuator': None,
 
     # MCP3008
     'mcp3008': {
@@ -185,6 +199,20 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _is_simulating(component: str) -> bool:
+    """
+    判斷某個元件(ldr / mppt / actuator)是否該用模擬值。
+    優先看 simulate_<component>(若 None 則 fallback 到 simulation_mode 總開關)。
+
+    例:simulation_mode=True、simulate_ldr=False → LDR 走真實硬體,其他模擬。
+    """
+    key = f'simulate_{component}'
+    override = CONFIG.get(key)
+    if override is not None:
+        return bool(override)
+    return bool(CONFIG.get('simulation_mode', False))
+
+
 # ════════════════════════════════════════════════════════════════
 # 座標轉換（tip-tilt ↔ 傾角/方位角）
 # ════════════════════════════════════════════════════════════════
@@ -243,7 +271,9 @@ class INA3221Reader:
         self._shunt = cfg['shunt_ohm']
         self._bus   = None
 
-        if HARDWARE_AVAILABLE and not CONFIG['simulation_mode']:
+        # INA3221 跟著 mppt / actuator 共用「電力量測」這個元件分類,
+        # 任何一個不模擬就會試著啟動 I2C
+        if HARDWARE_AVAILABLE and not (_is_simulating('mppt') and _is_simulating('actuator')):
             try:
                 self._bus = smbus2.SMBus(1)
                 logger.info("INA3221 初始化成功（I2C 0x%02X）", self._addr)
@@ -256,8 +286,8 @@ class INA3221Reader:
         return raw - 0x10000 if raw > 0x7FFF else raw
 
     def read_channel(self, ch: int) -> dict:
-        """讀取指定通道電壓（V）與電流（A）"""
-        if CONFIG['simulation_mode']:
+        """讀取指定通道電壓（V）與電流（A）。CH1=推桿、CH2=Pi,共用 actuator 模擬旗標"""
+        if _is_simulating('actuator'):
             import random
             return {
                 'voltage': round(random.uniform(11.5, 12.5), 3),
@@ -303,7 +333,7 @@ def read_mppt_power() -> dict:
         current = instrument.read_register(0x0102, numberOfDecimals=2)
         return {'voltage': voltage, 'current': current, 'power': voltage * current}
     """
-    if CONFIG['simulation_mode']:
+    if _is_simulating('mppt'):
         import random
         v = round(random.uniform(14.0, 18.0), 2)
         i = round(random.uniform(0.5, 5.0),   2)
@@ -344,7 +374,9 @@ class ANFISModel:
             return
 
         try:
-            self.model  = tf.keras.models.load_model(str(k_path), compile=False)
+            self.model  = tf.keras.models.load_model(
+                str(k_path), compile=False,
+                custom_objects={'SimpleFuzzyLayer': SimpleFuzzyLayer})
             self.scaler = joblib.load(str(s_path))
             with open(c_path, encoding='utf-8') as f:
                 self.config = json.load(f)
@@ -407,7 +439,18 @@ class SensorReader:
 
     def __init__(self):
         cfg = CONFIG['mcp3008']
-        if HARDWARE_AVAILABLE:
+        # 新版優先用 ldr_module(spidev + channel calibration + median 抗噪)
+        # 舊版 fallback 用 gpiozero.MCP3008 single-shot 讀取
+        self._ldr_reader = None
+        if LDR_MODULE_AVAILABLE and not _is_simulating('ldr'):
+            try:
+                self._ldr_reader = LDRReader(samples_per_read=20,
+                                             spi_bus=cfg['spi_port'],
+                                             spi_device=cfg['device'])
+                logger.info("LDR 讀取:使用 ldr_module(median 20 取樣 + channel calibration)")
+            except Exception as e:
+                logger.warning("ldr_module 初始化失敗,fallback gpiozero:%s", e)
+        if self._ldr_reader is None and HARDWARE_AVAILABLE:
             self._adc = {
                 'east':  MCP3008(channel=cfg['east_ch'],
                                  port=cfg['spi_port'], device=cfg['device']),
@@ -425,23 +468,30 @@ class SensorReader:
         return max(0.0, raw_adc * cal['slope'] + cal['intercept'])
 
     def read_ldr_raw(self) -> Dict[str, float]:
-        """讀取 ADC 原始值（0-1023）"""
-        if CONFIG['simulation_mode']:
+        """讀取 ADC 原始值(0-1023)。優先用 ldr_module(median + calibration),fallback gpiozero。"""
+        if _is_simulating('ldr'):
             import random
             base = random.uniform(300, 800)
             return {d: round(base + random.uniform(-60, 60))
                     for d in ('east', 'west', 'south', 'north')}
 
+        # 新版:ldr_module 已套校正,直接回傳
+        if self._ldr_reader is not None:
+            try:
+                return self._ldr_reader.read_calibrated()
+            except Exception as e:
+                raise RuntimeError(f"LDR 讀取失敗(ldr_module): {e}") from e
+
+        # 舊版 fallback:gpiozero single-shot(無校正、無 median)
         if not HARDWARE_AVAILABLE:
             raise RuntimeError(
-                "硬體不可用（gpiozero 未安裝），若要測試請在 CONFIG 中設定 simulation_mode=True"
+                "硬體不可用(gpiozero / spidev 未安裝),若要測試請在 CONFIG 中設定 simulate_ldr=True"
             )
-
         try:
             return {d: round(self._adc[d].value * 1023)
                     for d in ('east', 'west', 'south', 'north')}
         except Exception as e:
-            raise RuntimeError(f"LDR 讀取失敗（感測器可能斷線或接觸不良）: {e}") from e
+            raise RuntimeError(f"LDR 讀取失敗(感測器可能斷線或接觸不良): {e}") from e
 
     def read_illumination(self) -> Tuple[Dict[str, float], float]:
         """
@@ -455,11 +505,10 @@ class SensorReader:
 
     def read_power(self) -> float:
         """
-        讀取目前面板功率（W）。
-        TODO：接 INA3221 I2C，讀取電壓×電流。
-              實作後移除 simulation_mode fallback。
+        讀取目前面板功率(W)。從 MPPT 取電壓電流計算。
+        TODO:接 INA3221 I2C,讀取電壓×電流。實作後移除 simulate_mppt fallback。
         """
-        if CONFIG['simulation_mode']:
+        if _is_simulating('mppt'):
             import random
             return random.uniform(50, 200)
 
@@ -783,14 +832,19 @@ class ANFISTrackingController:
             mppt = {'voltage': 0.0, 'current': 0.0, 'power': 0.0}
 
         payload = {
-            'system_id':              CONFIG['system_id'],
+            'system':                 CONFIG['system_id'],   # Django serializer 必填欄位名為 'system'
             'timestamp':              now.isoformat(),
             # 太陽能板（MPPT RS485）— serializer 必填
             'voltage':                mppt['voltage'],
             'current':                mppt['current'],
             'power_output':           mppt['power'],
-            # 光照強度（四 LDR 校正平均，W/m²）
+            # 光照強度(四 LDR 校正平均,W/m² 或 lux)
             'light_intensity':        round(illumination, 1),
+            # 四方位獨立讀值(對照組差動追日 + ANFIS 訓練可用)
+            'light_north':            round(ldr_cal.get('north', 0.0), 1),
+            'light_east':             round(ldr_cal.get('east',  0.0), 1),
+            'light_west':             round(ldr_cal.get('west',  0.0), 1),
+            'light_south':            round(ldr_cal.get('south', 0.0), 1),
             # 面板角度（傾角方位角系統）
             'panel_tilt':             round(self.actuator.beta, 2),
             'panel_azimuth':          round(self.actuator.phi,  2),
@@ -819,7 +873,9 @@ class ANFISTrackingController:
 # ════════════════════════════════════════════════════════════════
 def main():
     # 模型目錄：預設為本檔案的上上層目錄（raspberry-pi/）
-    model_dir = str(Path(__file__).parent.parent.parent)
+    # model_dir 是放 controller 的目錄（同層的 models/ 子資料夾)
+    # 原本 .parent.parent.parent 會跑到家目錄,讓 base/'models/...' 變成 ~/models/... 找不到
+    model_dir = str(Path(__file__).resolve().parent)
     controller = ANFISTrackingController(model_dir=model_dir)
     try:
         controller.run()

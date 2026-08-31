@@ -124,6 +124,11 @@ Single file at `backend/static/dashboard.html` (~2189 行) + design system in `b
 - 數字統一用 Consolas tabular-nums 對齊小數點
 - KPI 排行榜冠軍用金色漸層、2-5 名深藍、6-8 中藍、9-12 淺灰
 
+**前端設計知識庫（2026-06-11 整合）：** 改動 dashboard.html / theme.css 前必讀 `docs/design-skills/`：
+- `taste-skill-v2.md` — 通用設計準則（typography、color、互動狀態、AI tells 禁用清單）
+- `redesign-skill.md` — 既有專案改版流程（Scan → Diagnose → Fix）與 Fix Priority
+- 適用原則：取「設計意圖」，框架專屬規則（React/Tailwind/Framer Motion）以 vanilla CSS 等效實作；不改內容/數據/功能
+
 ## 5. API Endpoints (base: `/api/`)
 
 **Fixed Panel API (CSV-based):**
@@ -240,10 +245,11 @@ python z3a_collect.py                              # last 7 days (default)
 python z3a_collect.py --start 2026-04-07 --end 2026-05-03
 python z3a_collect.py --days 30
 ```
-**Token 機制（重要）：**
-- 從 `.env.dev` 讀 `Z3A_TOKEN`（access）+ `Z3A_REFRESH_TOKEN`（refresh）
-- 過期會嘗試 (1) refresh token 換新（雲端未實作此端點，會失敗）→ (2) 用 `Z3A_PHONE` + `Z3A_PASSWORD` 自動登入（**雲端強制圖形驗證碼，純自動會失敗**）
-- 實際運作：**約每 10 天 user 從 Fiddler 抓新 token 貼進 .env.dev**（見 `Z3A_TOKEN_SOP.md`）
+**Token 機制（重要，2026-06-26 大幅簡化）：**
+- 雲端 `server.qiyunwulian.com` 要 `auth: Bearer <token>`（不是裸 token）；`Z3A_USE_BEARER_PREFIX` env 預設 `true`，未來雲端改了再 toggle
+- 實測雲端**不分 access/refresh token**，valid JWT 加 Bearer 都吃 → 直接拿 tokenString2 當 Z3A_TOKEN 用
+- `.env.dev` 的 `Z3A_TOKEN` 跟 `Z3A_REFRESH_TOKEN` 都填同一個 tokenString2 值；access 端真要過期會 fallback 到 token2（PR #2 邏輯保留）
+- 實際運作：**每 ~78 天 user 從 Fiddler 抓一次 tokenString2 貼進 .env.dev 兩個欄位**（見 `Z3A_TOKEN_SOP.md`）
 
 **輔助腳本（這輪新增）：**
 - `z3a_check_token.py` — 隨時查 token 剩多少天
@@ -262,8 +268,8 @@ python z3a_collect.py --days 30
 | Issue | Detail | Priority |
 |-------|--------|----------|
 | ~~Z3A historical backfill~~ | ✓ 已於 2026-05-15 補齊到 5/15；之後 Task Scheduler 每週自動 | Done |
-| ~~Z3A Token expiry~~ | ✓ 每 10 天從 Fiddler 抓新 token；Cowork 週四自動提醒 | Done |
-| Z3A refresh endpoint | 雲端未實作 `/user/refreshToken` 等端點；待 App 升級後 Fiddler 抓 | Low |
+| ~~Z3A Token expiry~~ | ✓ 2026-06-26 改用 token2 當 auth，每 ~78 天 Fiddler 一次；Cowork 週四在剩 < 30 天才提醒 | Done |
+| ~~Z3A refresh endpoint~~ | ✓ 不需要了 — 雲端不分 access/refresh token，token2 直接當 access 用 | Done |
 | Current unit conversion | Confirm if dca_value÷1e9 needs shunt correction factor (20A/75mV) | Low |
 | Spare devices R2-5/R2-6 | Z3A0512130, Z3A0512131 — confirm if needed | Low |
 
@@ -315,7 +321,8 @@ python raspberry-pi/src/main_controller.py --mode both
 - **Tailscale in Docker not Windows native**: Easier cross-machine deploy; Fiddler HTTPS decrypt breaks container TLS.
 - **Model saves as `.keras` not `.h5`**: h5py fails on Windows paths containing Chinese/Unicode characters.
 - **Z3A 排程交給 Windows Task Scheduler 而非 Cowork**：Cowork scheduled task 跑在 Linux sandbox，沒 docker、被 proxy 擋住 IoT 雲端；Windows Task Scheduler 跑在使用者本機，能真正做事。Cowork 端的排程降級為「token 將過期通知」。
-- **Z3A 半自動 token 機制**：雲端強制圖形驗證碼，無法純自動登入；改採「每 10 天手動 Fiddler 抓一次貼進 .env.dev」+ 排程在 token 將過期時提醒 user。
+- **Z3A 半自動 token 機制（2026-06-26 簡化）**：雲端強制圖形驗證碼，無法純自動登入；經實測雲端不分 access/refresh token 且需 `Bearer ` 前綴，改採「token2 當 Z3A_TOKEN 直接用，每 ~78 天 Fiddler 一次」；新增 `Z3A_USE_BEARER_PREFIX` env 開關（預設 true）給未來雲端版本變動時 toggle。
+- **論文/簡報產圖規範(2026-07-08 更新)**：ASME 風格 — Times New Roman(Linux fallback Liberation Serif)、600 dpi、雙欄 6.5"/單欄 3.25"、全外框、tick 向內且大 tick 間加一小 tick、無格線、legend 無框、軸標 `Quantity name, Symbol (unit)`(Latin 斜體、Greek 正體)、不畫每日原始細淡線。**折線圖色序(固定)：紅 #d62728 → 藍 #1f77b4 → 黑 #000000 → 深綠 #006400 → 粉紅 #e377c2 → 咖啡 #8c564b → 橘 #ff7f0e**；bar/heatmap 仍可用 viridis。一律附原始 PNG 存到 `研究/論文/草稿`。
 - **Python 必須 `PYTHONUTF8=1`**：Windows 預設 stdout 是 cp950，遇到 Z3A 雲端 CSV 內的簡體字（如「时间」）會 UnicodeEncodeError 且**靜默失敗**（step 4 pvlib 部分跑、合併 0 筆，user 不會發現）。`solar_weekly_run.ps1` 已內建 `$env:PYTHONUTF8='1'` + `python -X utf8`，建議 user 也設系統環境變數一勞永逸。
 - **PowerShell 5.1 讀 .ps1 預設用 cp950**：.ps1 含中文必須加 UTF-8 BOM 才不會 parse 失敗。Cowork Edit/Write tool 可保 BOM；bash 寫入需手動加 BOM。
 - **Cowork ↔ Windows 同步偶有落差**：bash truncate/heredoc 寫到 mount 路徑不一定即時反映到 Windows；Edit/Read 工具走 Windows 檔案系統直接讀寫較可靠。後續若編輯失敗看到「我這邊行數 ≠ Windows 行數」現象，要用 Edit/Read 而非 bash。
@@ -328,6 +335,17 @@ python raspberry-pi/src/main_controller.py --mode both
 4. **Windows Task Scheduler** — `solar_weekly_run.ps1` + `register_task_scheduler.ps1`，每週一 02:00 自動跑完整流程，log 寫到 `logs/`
 5. **Cowork 排程降級** — `solar-weekly-maintenance` 改為週四 09:00 純 token 提醒，不再嘗試做 docker / 雲端工作
 6. **2026-04-07 ~ 5/15 資料缺口已補齊**
+
+## 15. 本輪 2026-06-11 前端優化（taste-skill / redesign-skill）
+
+1. **知識庫整合** — `docs/design-skills/` 收錄 taste-skill v2 + redesign-skill，前端改動前必讀
+2. **Bug 修復** — 補定義漏掉的 `.num-display` / `.unit` / `.t-label`；移除零使用的 Font Awesome；補 favicon + meta description
+3. **字體升級** — `Outfit` + `Noto Sans TC`（介面）、`JetBrains Mono`（數據），保留 Consolas/微軟正黑 fallback；Chart.js 全域字體同步
+4. **互動狀態** — 全站按鈕 `:active` 按壓回饋、`:focus-visible` 鍵盤焦點環、`scroll-behavior: smooth`、`100dvh`
+5. **Skeleton 載入骨架** — 取代主要「載入中…」文字（總覽表、排行榜、heatmap、Z3A 裝置清單）
+6. **色彩收斂** — 照度柱粉紅 → 金色低飽和；Z3A rose accent → navy-3；active tab 統一金線（移除 per-tab 色）
+7. **inline style 收斂** — 14 個圖表容器統一為 `.chart-box`（`--h` 控高度）
+8. 語意化：`<main>` / `<footer>`；內容與功能零改動
 
 ---
 

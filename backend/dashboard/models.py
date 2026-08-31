@@ -29,9 +29,25 @@ class PowerRecord(models.Model):
     voltage = models.FloatField(verbose_name="電壓(V)", help_text="太陽能板輸出電壓")
     current = models.FloatField(verbose_name="電流(A)", help_text="太陽能板輸出電流")
     power_output = models.FloatField(verbose_name="功率(W)", help_text="計算或測量的功率")
-    
+
+    # 電池端讀值(2026-06-23 補,從 EPEVER MPPT 0x3104-3107)
+    battery_voltage = models.FloatField(null=True, blank=True, verbose_name="電池電壓(V)",
+                                       help_text="EPEVER 0x3104,12V 鉛酸滿電應 13.5-14.5V")
+    battery_current = models.FloatField(null=True, blank=True, verbose_name="電池充電電流(A)",
+                                       help_text="EPEVER 0x3105,>0 充電 <0 放電")
+    battery_power   = models.FloatField(null=True, blank=True, verbose_name="電池充電功率(W)",
+                                       help_text="EPEVER 0x3106/3107,實際進電池的功率")
+    battery_soc     = models.FloatField(null=True, blank=True, verbose_name="電池 SOC(%)",
+                                       help_text="EPEVER 0x311A 內建估算,0-100")
+
     # 可選的環境數據
-    light_intensity = models.FloatField(null=True, blank=True, verbose_name="光照強度(lux)")
+    light_intensity = models.FloatField(null=True, blank=True, verbose_name="光照強度(lux)",
+                                       help_text="四方位平均或單一光照計值")
+    # 四方位 LDR 獨立讀值(對照組差動追日用)
+    light_north = models.FloatField(null=True, blank=True, verbose_name="北方 LDR(lux)")
+    light_east  = models.FloatField(null=True, blank=True, verbose_name="東方 LDR(lux)")
+    light_west  = models.FloatField(null=True, blank=True, verbose_name="西方 LDR(lux)")
+    light_south = models.FloatField(null=True, blank=True, verbose_name="南方 LDR(lux)")
     temperature = models.FloatField(null=True, blank=True, verbose_name="溫度(°C)")
     humidity = models.FloatField(null=True, blank=True, verbose_name="濕度(%)")
     

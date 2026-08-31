@@ -1,0 +1,23 @@
+{
+  "has_illumination": true,
+  "feature_columns": [
+    "hour_sin",
+    "hour_cos",
+    "day_sin",
+    "day_cos",
+    "tilt_sin",
+    "tilt_cos",
+    "azimuth_sin",
+    "azimuth_cos",
+    "illumination"
+  ],
+  "input_dim": 9,
+  "num_mfs": 7,
+  "training_date": "2026-07-09 17:43:05",
+  "performance": {
+    "rmse": 31.572332271874103,
+    "mae": 20.22480252226314,
+    "r2": 0.8523455338189879,
+    "mape": 34.0685397954727
+  }
+}

@@ -467,7 +467,7 @@ def main():
 
         # ── Step 6：上傳資料 ─────────────────────────────────────
         upload_to_api({
-            'system_id':              CONFIG['system_id'],
+            'system':                 CONFIG['system_id'],   # Django serializer 必填欄位名為 'system'
             'timestamp':              now.isoformat(),
             # 太陽能板（MPPT RS485）— 必填欄位
             'voltage':                mppt['voltage'],

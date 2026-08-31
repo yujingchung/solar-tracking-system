@@ -3,10 +3,12 @@
 
 gpiozero          # Raspberry Pi GPIO / MCP3008 ADC
 RPi.GPIO          # gpiozero 底層驅動
+lgpio             # Pi 5 偏好的 GPIO 後端（Pi 4 也可裝,gpiozero 自動選用）
 smbus2            # INA3221 I2C 通訊
 spidev            # MCP3008 SPI
 numpy             # 數值計算
 requests          # Django API 上傳
-tensorflow        # ANFIS 模型推論 (用 tflite-runtime 替代會更輕)
+tensorflow        # ANFIS 模型推論
 joblib            # scaler 載入
-# minimalmodbus   # MPPT RS485（確認協定後取消註解）
+scikit-learn      # joblib 反序列化 MinMaxScaler 需要(否則 ModuleNotFoundError: sklearn)
+minimalmodbus     # MPPT RS485（EPEVER Tracer-AN, 115200/8N1, slave=1, reg 0x3100~0x3103）

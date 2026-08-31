@@ -44,7 +44,7 @@ except ImportError:
 CONFIG = {
     # Django API
     'system_id': 6,
-    'api_url': 'http://localhost:8000/api',
+    'api_url': 'https://solar-dashboard.tail7c1eb9.ts.net/api',
 
     # 模擬模式（True = 允許在無硬體環境下以隨機值測試；False = 生產模式，硬體失敗直接拋例外）
     'simulation_mode': False,
@@ -77,8 +77,8 @@ CONFIG = {
     # MPPT RS485 設定（太陽能板電壓/電流）
     'mppt': {
         'port':     '/dev/ttyUSB0',
-        'baudrate': 9600,
-        # TODO：確認 MPPT 控制器通訊協定（Modbus RTU 或自訂格式）後補充
+        'baudrate': 115200,
+        'slave':    1,
     },
 
     # 太陽時間
@@ -124,8 +124,10 @@ class INA3221Reader:
     CH2 = 樹莓派本身
     分流電阻：0.1Ω（標準模組預設）
     """
-    _REG_SHUNT = {1: 0x02, 2: 0x04, 3: 0x06}
-    _REG_BUS   = {1: 0x03, 2: 0x05, 3: 0x07}
+    # 2026-07-14 修正 off-by-1 bug(舊值都 +1,實際 INA3221 datasheet:)
+    # 0x01=CH1 SHUNT, 0x02=CH1 BUS, 0x03=CH2 SHUNT, 0x04=CH2 BUS, 0x05=CH3 SHUNT, 0x06=CH3 BUS
+    _REG_SHUNT = {1: 0x01, 2: 0x03, 3: 0x05}
+    _REG_BUS   = {1: 0x02, 2: 0x04, 3: 0x06}
     _LSB_SHUNT = 40e-6   # 40 µV / LSB
     _LSB_BUS   = 8e-3    #  8 mV / LSB
 
@@ -191,30 +193,104 @@ class INA3221Reader:
 # ════════════════════════════════════════════════════════════════
 # MPPT RS485 讀取（太陽能板電壓/電流）
 # ════════════════════════════════════════════════════════════════
+# Module-level singleton(避免每次 read 都開新 serial port)
+_mppt_instrument = None
+
+
 def read_mppt_power() -> dict:
     """
-    從 MPPT 控制器讀取太陽能板電壓/電流（RS485-to-USB 序列埠）。
-    回傳 {'voltage': V, 'current': A, 'power': W}
+    從 EPEVER Tracer-AN-G3 經 Modbus RTU 讀 PV 端 + 電池端 V/I/P + SOC。
+    回傳 {
+        'voltage': PV V,
+        'current': PV A,
+        'power':   PV W,
+        'batt_voltage': 電池 V,
+        'batt_current': 充電電流 A,(>0 充電,< 0 放電)
+        'batt_power':   充電功率 W,
+        'batt_soc':     電池 SOC 0-100%(EPEVER 內建估算),
+    }
 
-    TODO：確認 MPPT 控制器通訊協定後實作。
-    實作範例（Modbus RTU）：
-        import minimalmodbus
-        instrument = minimalmodbus.Instrument(CONFIG['mppt']['port'], 1)
-        instrument.serial.baudrate = CONFIG['mppt']['baudrate']
-        voltage = instrument.read_register(0x0101, numberOfDecimals=1)
-        current = instrument.read_register(0x0102, numberOfDecimals=2)
-        return {'voltage': voltage, 'current': current, 'power': voltage * current}
+    Register map(EPEVER Tracer-AN-G3 input registers, function code 4):
+        0x3100 = PV voltage           (÷100 → V)
+        0x3101 = PV current           (÷100 → A)
+        0x3102/0x3103 = PV power L/H  (組合 ÷100 → W)
+        0x3104 = Battery voltage      (÷100 → V)
+        0x3105 = Battery charge curr  (signed, ÷100 → A)
+        0x3106/0x3107 = Battery power L/H (組合 ÷100 → W)
+        0x311A = Battery SOC          (整數 0-100,直接讀不除)
+
+    2026-06-25 與 anfis_controller.py 同步實作。
     """
     if CONFIG['simulation_mode']:
         import random
         v = round(random.uniform(14.0, 18.0), 2)
         i = round(random.uniform(0.5, 5.0),   2)
-        return {'voltage': v, 'current': i, 'power': round(v * i, 2)}
+        bv = round(random.uniform(12.5, 14.5), 2)
+        bi = round(random.uniform(0.0, 3.0),   2)
+        soc = random.randint(85, 100)
+        return {
+            'voltage': v, 'current': i, 'power': round(v * i, 2),
+            'batt_voltage': bv, 'batt_current': bi,
+            'batt_power': round(bv * bi, 2),
+            'batt_soc': soc,
+        }
 
-    raise NotImplementedError(
-        "MPPT RS485 讀取尚未實作，請先確認通訊協定後填入，"
-        "或設定 simulation_mode=True 進行測試"
-    )
+    global _mppt_instrument
+    try:
+        if _mppt_instrument is None:
+            import minimalmodbus
+            cfg = CONFIG.get('mppt', {})
+            port  = cfg.get('port',     '/dev/ttyUSB0')
+            slave = cfg.get('slave',    1)
+            baud  = cfg.get('baudrate', 115200)
+            _mppt_instrument = minimalmodbus.Instrument(port, slave)
+            _mppt_instrument.serial.baudrate = baud
+            _mppt_instrument.serial.bytesize = 8
+            _mppt_instrument.serial.parity   = 'N'
+            _mppt_instrument.serial.stopbits = 1
+            _mppt_instrument.serial.timeout  = 1.0
+            _mppt_instrument.mode = minimalmodbus.MODE_RTU
+            _mppt_instrument.clear_buffers_before_each_transaction = True
+            logger.info("EPEVER MPPT 連線: %s baud=%d slave=%d", port, baud, slave)
+
+        # PV 端
+        v   = _mppt_instrument.read_register(0x3100, 0, functioncode=4) / 100.0
+        i   = _mppt_instrument.read_register(0x3101, 0, functioncode=4) / 100.0
+        p_l = _mppt_instrument.read_register(0x3102, 0, functioncode=4)
+        p_h = _mppt_instrument.read_register(0x3103, 0, functioncode=4)
+        power = ((p_h << 16) | p_l) / 100.0
+
+        # 電池端
+        bv = _mppt_instrument.read_register(0x3104, 0, functioncode=4) / 100.0
+        bi_raw = _mppt_instrument.read_register(0x3105, 0, functioncode=4)
+        if bi_raw > 0x7FFF:
+            bi_raw -= 0x10000
+        bi = bi_raw / 100.0
+        bp_l = _mppt_instrument.read_register(0x3106, 0, functioncode=4)
+        bp_h = _mppt_instrument.read_register(0x3107, 0, functioncode=4)
+        bp = ((bp_h << 16) | bp_l) / 100.0
+
+        # SOC
+        try:
+            soc = _mppt_instrument.read_register(0x311A, 0, functioncode=4)
+        except Exception:
+            soc = None
+
+        logger.info("MPPT 讀取: PV V=%.2fV I=%.2fA P=%.2fW | Batt V=%.2fV I=%.2fA P=%.2fW SOC=%s%%",
+                    v, i, power, bv, bi, bp, soc if soc is not None else 'N/A')
+        return {
+            'voltage': round(v, 2), 'current': round(i, 2), 'power': round(power, 2),
+            'batt_voltage': round(bv, 2), 'batt_current': round(bi, 2),
+            'batt_power':   round(bp, 2),
+            'batt_soc':     soc,
+        }
+    except Exception as e:
+        logger.warning("MPPT 讀取失敗 fallback 0: %s", e)
+        return {
+            'voltage': 0.0, 'current': 0.0, 'power': 0.0,
+            'batt_voltage': 0.0, 'batt_current': 0.0, 'batt_power': 0.0,
+            'batt_soc': None,
+        }
 
 
 # ════════════════════════════════════════════════════════════════
@@ -400,18 +476,13 @@ def main():
     ina3221   = INA3221Reader()
     threshold = CONFIG['threshold']
 
+    # 2026-07-14 新增:追蹤是否已在夜間回歸過,避免每 10 分鐘重複動
+    night_mode = [False]
+
     while True:
         now = datetime.now()
 
-        # ── Step 1：判斷太陽時間 ─────────────────────────────────
-        if not is_sun_time(now):
-            actuator.return_to_initial()
-            logger.info("非太陽時間，回歸初始位置，等待 %d 秒",
-                        CONFIG['interval_seconds'])
-            time.sleep(CONFIG['interval_seconds'])
-            continue
-
-        # ── Step 2：讀取 LDR ─────────────────────────────────────
+        # ── Step 1:讀取 LDR (無論白天/夜間都要記錄)──────────────
         values = ldr.read()
         logger.info("LDR  東=%-5d 西=%-5d 南=%-5d 北=%-5d 照度=%.1f W/m²",
                     values['east'], values['west'],
@@ -419,26 +490,45 @@ def main():
 
         decision_ew = '保持'
         decision_ns = '保持'
-
-        # ── Step 3：東西差異判斷（控制 ζ）───────────────────────
-        ew_diff = values['east'] - values['west']
-        if abs(ew_diff) > threshold:
-            if ew_diff > 0:
-                if actuator.move_east():
-                    decision_ew = '向東'
-            else:
-                if actuator.move_west():
-                    decision_ew = '向西'
-
-        # ── Step 4：南北差異判斷（控制 γ）───────────────────────
+        # 2026-07-14 修:預先算 ew_diff/ns_diff,不管白天/夜間都有值(供 notes 用)
+        ew_diff = values['east']  - values['west']
         ns_diff = values['south'] - values['north']
-        if abs(ns_diff) > threshold:
-            if ns_diff > 0:
-                if actuator.move_south():
-                    decision_ns = '向南'
-            else:
-                if actuator.move_north():
-                    decision_ns = '向北'
+
+        # ── Step 2:判斷太陽時間 ────────────────────────────────
+        # ★ 2026-07-14 修:改「非太陽時間只記錄不動」而不是跳過整個 cycle
+        is_daytime = is_sun_time(now)
+        if not is_daytime:
+            # 第一次進夜間才回歸初始位置一次
+            if not night_mode[0]:
+                logger.info("進入非太陽時間(%d:00~%d:00),回歸初始位置一次",
+                            CONFIG['sun_start_hour'], CONFIG['sun_end_hour'])
+                actuator.return_to_initial()
+                night_mode[0] = True
+            decision_ew = '夜間'
+            decision_ns = '夜間'
+            # 略過 EW/NS 差動判斷,繼續走 INA3221/MPPT 讀取 + 上傳
+        else:
+            if night_mode[0]:
+                logger.info("進入太陽時間,恢復差動追日")
+            night_mode[0] = False
+
+            # ── Step 3:東西差異判斷(控制 ζ)—— 只在白天做 ────────
+            if abs(ew_diff) > threshold:
+                if ew_diff > 0:
+                    if actuator.move_east():
+                        decision_ew = '向東'
+                else:
+                    if actuator.move_west():
+                        decision_ew = '向西'
+
+            # ── Step 4:南北差異判斷(控制 γ)—— 只在白天做 ────────
+            if abs(ns_diff) > threshold:
+                if ns_diff > 0:
+                    if actuator.move_south():
+                        decision_ns = '向南'
+                else:
+                    if actuator.move_north():
+                        decision_ns = '向北'
 
         logger.info("決策 EW=%-4s NS=%-4s  γ=%.1f° ζ=%.1f°",
                     decision_ew, decision_ns, actuator.gamma, actuator.zeta)
@@ -460,10 +550,14 @@ def main():
             mppt = read_mppt_power()
         except NotImplementedError:
             logger.warning("MPPT 讀取尚未實作，voltage/current 將為 null")
-            mppt = {'voltage': 0.0, 'current': 0.0, 'power': 0.0}
+            mppt = {'voltage': 0.0, 'current': 0.0, 'power': 0.0,
+                    'batt_voltage': 0.0, 'batt_current': 0.0, 'batt_power': 0.0,
+                    'batt_soc': None}
         except Exception as e:
             logger.warning("MPPT 讀取失敗: %s", e)
-            mppt = {'voltage': 0.0, 'current': 0.0, 'power': 0.0}
+            mppt = {'voltage': 0.0, 'current': 0.0, 'power': 0.0,
+                    'batt_voltage': 0.0, 'batt_current': 0.0, 'batt_power': 0.0,
+                    'batt_soc': None}
 
         # ── Step 6：上傳資料 ─────────────────────────────────────
         upload_to_api({
@@ -473,8 +567,18 @@ def main():
             'voltage':                mppt['voltage'],
             'current':                mppt['current'],
             'power_output':           mppt['power'],
+            # 電池端讀值(2026-06-25 補,跟 anfis_controller 同步)
+            'battery_voltage':        mppt.get('batt_voltage', 0.0),
+            'battery_current':        mppt.get('batt_current', 0.0),
+            'battery_power':          mppt.get('batt_power', 0.0),
+            'battery_soc':            mppt.get('batt_soc'),
             # 光照強度（四 LDR 平均，W/m²）
             'light_intensity':        values['illumination'],
+            # 4 方位個別讀值(2026-07-15 補;讓 dashboard 能看差異、排查 LDR 接線)
+            'light_east':             values['east'],
+            'light_west':             values['west'],
+            'light_south':            values['south'],
+            'light_north':            values['north'],
             # 推桿角度（tip-tilt）
             'ns_actuator_angle':      actuator.gamma,
             'ew_actuator_angle':      actuator.zeta,

@@ -158,19 +158,19 @@
 
     <div class="row g-3 mb-4">
         <div class="col-6 col-lg-3">
-            <div class="card card-accent is-hover sys-tile" style="--accent: var(--exp-1)" onclick="switchTab('live-monitor');liveSelect(1)">
+            <div class="card card-accent is-hover sys-tile" style="--accent: var(--exp-1)" onclick="switchTab('live-monitor');liveSelect(4)">
                 <div class="sys-tile-hdr">
                     <div>
                         <div class="sys-name">實驗組 I</div>
                         <span class="badge-exp">ANFIS 追日</span>
                     </div>
-                    <span class="ob ob-off" id="ov-s1-badge"><span class="dot"></span>離線</span>
+                    <span class="ob ob-off" id="ov-s4-badge"><span class="dot"></span>離線</span>
                 </div>
                 <div class="sys-power">
-                    <div class="sys-power-num" style="color:var(--exp-1)" id="ov-s1-power">--</div>
+                    <div class="sys-power-num" style="color:var(--exp-1)" id="ov-s4-power">--</div>
                     <div class="sys-power-unit">W 即時功率</div>
                 </div>
-                <div class="sys-ts" id="ov-s1-time">--</div>
+                <div class="sys-ts" id="ov-s4-time">--</div>
             </div>
         </div>
         <div class="col-6 col-lg-3">
@@ -190,35 +190,35 @@
             </div>
         </div>
         <div class="col-6 col-lg-3">
-            <div class="card card-accent is-hover sys-tile" style="--accent: var(--ctrl-1)" onclick="switchTab('live-monitor');liveSelect(3)">
+            <div class="card card-accent is-hover sys-tile" style="--accent: var(--ctrl-1)" onclick="switchTab('live-monitor');liveSelect(6)">
                 <div class="sys-tile-hdr">
                     <div>
                         <div class="sys-name">對照組 I</div>
                         <span class="badge-ctrl">差分感測追日</span>
                     </div>
-                    <span class="ob ob-off" id="ov-s3-badge"><span class="dot"></span>離線</span>
+                    <span class="ob ob-off" id="ov-s6-badge"><span class="dot"></span>離線</span>
                 </div>
                 <div class="sys-power">
-                    <div class="sys-power-num" style="color:var(--ctrl-1)" id="ov-s3-power">--</div>
+                    <div class="sys-power-num" style="color:var(--ctrl-1)" id="ov-s6-power">--</div>
                     <div class="sys-power-unit">W 即時功率</div>
                 </div>
-                <div class="sys-ts" id="ov-s3-time">--</div>
+                <div class="sys-ts" id="ov-s6-time">--</div>
             </div>
         </div>
         <div class="col-6 col-lg-3">
-            <div class="card card-accent is-hover sys-tile" style="--accent: var(--ctrl-2)" onclick="switchTab('live-monitor');liveSelect(4)">
+            <div class="card card-accent is-hover sys-tile" style="--accent: var(--ctrl-2)" onclick="switchTab('live-monitor');liveSelect(7)">
                 <div class="sys-tile-hdr">
                     <div>
                         <div class="sys-name">對照組 II</div>
                         <span class="badge-ctrl">差分感測追日</span>
                     </div>
-                    <span class="ob ob-off" id="ov-s4-badge"><span class="dot"></span>離線</span>
+                    <span class="ob ob-off" id="ov-s7-badge"><span class="dot"></span>離線</span>
                 </div>
                 <div class="sys-power">
-                    <div class="sys-power-num" style="color:var(--ctrl-2)" id="ov-s4-power">--</div>
+                    <div class="sys-power-num" style="color:var(--ctrl-2)" id="ov-s7-power">--</div>
                     <div class="sys-power-unit">W 即時功率</div>
                 </div>
-                <div class="sys-ts" id="ov-s4-time">--</div>
+                <div class="sys-ts" id="ov-s7-time">--</div>
             </div>
         </div>
     </div>
@@ -250,7 +250,7 @@
         <div class="card-body">
             <div class="table-responsive" style="max-height:400px;overflow-y:auto">
                 <table class="data-table">
-                    <thead><tr><th>系統</th><th>時間</th><th>功率(W)</th><th>電壓(V)</th><th>電流(A)</th><th>光照(lux)</th><th>溫度(°C)</th></tr></thead>
+                    <thead><tr><th>系統</th><th>時間</th><th>功率(W)</th><th>電壓(V)</th><th>電流(A)</th><th>照度(raw)</th><th>溫度(°C)</th></tr></thead>
                     <tbody id="all-sites-table-body"><tr><td colspan="7"><div class="skel-stack" aria-label="載入中"><div class="skel"></div><div class="skel" style="width:94%"></div><div class="skel" style="width:97%"></div><div class="skel" style="width:90%"></div><div class="skel" style="width:95%"></div></div></td></tr></tbody>
                 </table>
             </div>
@@ -632,18 +632,18 @@
             <div class="section-sub">選擇下方系統，查看詳細感測器、推桿與最近紀錄</div>
         </div>
         <div class="d-flex gap-2" id="live-sys-switch">
-            <button class="pill-btn active" data-sys="1" onclick="liveSelect(1)">實驗組 I</button>
+            <button class="pill-btn active" data-sys="4" onclick="liveSelect(4)">實驗組 I</button>
             <button class="pill-btn" data-sys="2" onclick="liveSelect(2)">實驗組 II</button>
-            <button class="pill-btn" data-sys="3" onclick="liveSelect(3)">對照組 I</button>
-            <button class="pill-btn" data-sys="4" onclick="liveSelect(4)">對照組 II</button>
+            <button class="pill-btn" data-sys="6" onclick="liveSelect(6)">對照組 I</button>
+            <button class="pill-btn" data-sys="7" onclick="liveSelect(7)">對照組 II</button>
         </div>
     </div>
 
     <!-- 動態渲染 4 個 sys panel (預設只顯示第 1 個) -->
-    <div id="live-sys-panel-1" class="live-sys-panel"></div>
+    <div id="live-sys-panel-4" class="live-sys-panel"></div>
     <div id="live-sys-panel-2" class="live-sys-panel" style="display:none"></div>
-    <div id="live-sys-panel-3" class="live-sys-panel" style="display:none"></div>
-    <div id="live-sys-panel-4" class="live-sys-panel" style="display:none"></div>
+    <div id="live-sys-panel-6" class="live-sys-panel" style="display:none"></div>
+    <div id="live-sys-panel-7" class="live-sys-panel" style="display:none"></div>
 
 </div><!-- /tab-live-monitor -->
 
@@ -689,7 +689,7 @@
                 <div class="card-hdr"><h6>即時數據一覽</h6></div>
                 <div style="overflow:auto;max-height:340px">
                     <table class="data-table">
-                        <thead><tr><th>系統</th><th>功率(W)</th><th>γ 南北(°)</th><th>ζ 東西(°)</th><th>狀態</th></tr></thead>
+                        <thead><tr><th>系統</th><th>功率(W)</th><th>β 傾角(°)</th><th>φ 方位角(°)</th><th>γ 南北(°)</th><th>ζ 東西(°)</th><th>狀態</th></tr></thead>
                         <tbody id="compare-table-body"><tr><td colspan="5" class="text-center py-4 text-muted">載入中…</td></tr></tbody>
                     </table>
                 </div>
@@ -829,10 +829,10 @@
                     </p>
                     <div class="d-flex flex-column gap-2">
                         <a href="/api/power-records/export_csv/" class="btn btn-outline-secondary" download>全部系統 · CSV</a>
-                        <a href="/api/power-records/export_csv/?system=1" class="btn btn-outline-secondary btn-sm" download>實驗組 I · CSV</a>
+                        <a href="/api/power-records/export_csv/?system=4" class="btn btn-outline-secondary btn-sm" download>實驗組 I · CSV</a>
                         <a href="/api/power-records/export_csv/?system=2" class="btn btn-outline-secondary btn-sm" download>實驗組 II · CSV</a>
-                        <a href="/api/power-records/export_csv/?system=3" class="btn btn-outline-secondary btn-sm" download>對照組 I · CSV</a>
-                        <a href="/api/power-records/export_csv/?system=4" class="btn btn-outline-secondary btn-sm" download>對照組 II · CSV</a>
+                        <a href="/api/power-records/export_csv/?system=6" class="btn btn-outline-secondary btn-sm" download>對照組 I · CSV</a>
+                        <a href="/api/power-records/export_csv/?system=7" class="btn btn-outline-secondary btn-sm" download>對照組 II · CSV</a>
                     </div>
                 </div>
             </div>
@@ -902,16 +902,17 @@ if (typeof Chart !== 'undefined') {
     Chart.defaults.font.family = "'Outfit','Noto Sans TC','Microsoft JhengHei',sans-serif";
 }
 
-// 系統 metadata（保留舊代號相容性）
+// 系統 metadata(2026-07-14 修正:實際 DB system_id 是 4/2/6/7 不是 1/2/3/4)
+// id=1 是舊「測試系統」,id=3/5 是舊資料未清,不顯示
 const SYSTEMS = [
-    { id: 1, name: '實驗組 I',  type: 'exp',  color: '#2C4D85' },
+    { id: 4, name: '實驗組 I',  type: 'exp',  color: '#2C4D85' },
     { id: 2, name: '實驗組 II', type: 'exp',  color: '#3B5A8F' },
-    { id: 3, name: '對照組 I',  type: 'ctrl', color: '#0F766E' },
-    { id: 4, name: '對照組 II', type: 'ctrl', color: '#14B8A6' },
+    { id: 6, name: '對照組 I',  type: 'ctrl', color: '#0F766E' },
+    { id: 7, name: '對照組 II', type: 'ctrl', color: '#14B8A6' },
 ];
-const SYS_MAP = { 1: '實驗組 I', 2: '實驗組 II', 3: '對照組 I', 4: '對照組 II' };
-const CLR_MAP = { 1: '#2C4D85', 2: '#3B5A8F', 3: '#0F766E', 4: '#14B8A6' };
-const TYP_MAP = { 1: 'exp',     2: 'exp',     3: 'ctrl',     4: 'ctrl' };
+const SYS_MAP = { 4: '實驗組 I', 2: '實驗組 II', 6: '對照組 I', 7: '對照組 II' };
+const CLR_MAP = { 4: '#2C4D85', 2: '#3B5A8F', 6: '#0F766E', 7: '#14B8A6' };
+const TYP_MAP = { 4: 'exp',     2: 'exp',     6: 'ctrl',     7: 'ctrl' };
 
 // 固定面板 12 種組合配色（依 ranking 決定，runtime 計算）
 const FP_GROUP_BASE = {
@@ -1091,9 +1092,9 @@ function ovSetSeason(s) {
 function fpSetSeason(s) { ovSetSeason(s); }
 
 /* ═════════ §4 即時監控 (Live Monitor) — 4 系統面板動態渲染 ════════════════ */
-let currentLiveSys = 1;
+let currentLiveSys = 4;  // 預設實驗組 I (2026-07-14: 1→4)
 const trendCharts = {};
-const trendHistory = { 1: [], 2: [], 3: [], 4: [] };
+const trendHistory = { 4: [], 2: [], 6: [], 7: [] };
 
 function buildSysPanel(sys) {
     const p = sys.id, isExp = sys.type === 'exp';
@@ -1127,7 +1128,7 @@ function buildSysPanel(sys) {
         </div>
         <div class="col-lg-4">
             <div class="card card-accent h-100" style="--accent: var(--gold-2)">
-                <div class="card-hdr"><h6>四方位光照 (lux)</h6></div>
+                <div class="card-hdr" title="MCP3008 ADC 讀值,0-1023;超過 950 代表 LDR 過曝,分壓電阻要現場調小才能有 gradient"><h6>四方位光照 <span style="color:var(--navy-4);font-size:11px;font-weight:normal">(raw ADC 0-1023)</span></h6></div>
                 <div class="card-body d-flex align-items-center" style="min-height:160px">
                     <div class="compass-wrap w-100">
                         <div class="compass-cell c-n"><div class="cdir">北 N</div><div class="clux" id="s${p}-ln">--</div></div>
@@ -1185,7 +1186,7 @@ function buildSysPanel(sys) {
                     <div class="mtile mb-2" style="background:#FFF5F5"><div class="mlabel">推桿總功率</div><div class="mval text-danger"><span id="s${p}-actp">--</span><span class="munit">W</span></div></div>
                     <div class="row g-2">
                         <div class="col-4"><div class="mtile"><div class="mlabel">電壓</div><div class="mval sm"><span id="s${p}-actv">--</span><span class="munit">V</span></div></div></div>
-                        <div class="col-4"><div class="mtile"><div class="mlabel">電流</div><div class="mval sm"><span id="s${p}-actc">--</span><span class="munit">mA</span></div></div></div>
+                        <div class="col-4"><div class="mtile"><div class="mlabel">電流</div><div class="mval sm"><span id="s${p}-actc">--</span><span class="munit">A</span></div></div></div>
                         <div class="col-4"><div class="mtile"><div class="mlabel">Pi 功率</div><div class="mval sm" style="color:var(--success)"><span id="s${p}-rpip">--</span><span class="munit">W</span></div></div></div>
                     </div>
                 </div>
@@ -1216,7 +1217,11 @@ function buildSysPanel(sys) {
 function liveSelect(sysId) {
     currentLiveSys = sysId;
     document.querySelectorAll('#live-sys-switch .pill-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.sys) === sysId));
-    document.querySelectorAll('.live-sys-panel').forEach((p, i) => { p.style.display = (i + 1 === sysId) ? 'block' : 'none'; });
+    // 2026-07-14 修:改用 id 匹配 panel(原本 i+1 比對只支援 1-4)
+    document.querySelectorAll('.live-sys-panel').forEach(p => {
+        const pid = parseInt(p.id.replace('live-sys-panel-', ''));
+        p.style.display = (pid === sysId) ? 'block' : 'none';
+    });
     // 確保面板內容已建立
     SYSTEMS.forEach(sys => {
         const el = $(`live-sys-panel-${sys.id}`);
@@ -1252,12 +1257,17 @@ async function loadSysData(sysId) {
         setEl(`s${p}-a`, fmt(d.current, 3));
         setEl(`s${p}-azi`, fmt(d.panel_azimuth, 1));
         setEl(`s${p}-tilt`, fmt(d.panel_tilt, 1));
-        const bl = d.light_intensity;
-        setEl(`s${p}-ln`, fmt(d.light_north || bl, 0));
-        setEl(`s${p}-le`, fmt(d.light_east || bl, 0));
-        setEl(`s${p}-lw`, fmt(d.light_west || bl, 0));
-        setEl(`s${p}-ls`, fmt(d.light_south || bl, 0));
-        setEl(`s${p}-lt`, fmt(bl, 0));
+        // 4 方位 raw ADC(controller 反除 slope 拿回)
+        const bl = d.light_intensity;   // 舊 fallback,只給 4 方位缺值時用
+        const lN = d.light_north, lE = d.light_east, lW = d.light_west, lS = d.light_south;
+        setEl(`s${p}-ln`, fmt(lN ?? bl, 0));
+        setEl(`s${p}-le`, fmt(lE ?? bl, 0));
+        setEl(`s${p}-lw`, fmt(lW ?? bl, 0));
+        setEl(`s${p}-ls`, fmt(lS ?? bl, 0));
+        // 總照 = 4 方位 raw 平均(4 個都有值才算,否則 fallback 用 light_intensity)
+        const vals = [lN, lE, lW, lS].filter(v => v != null);
+        const avg = vals.length === 4 ? vals.reduce((a,b)=>a+b,0) / 4 : bl;
+        setEl(`s${p}-lt`, fmt(avg, 0));
         const nsa = d.ns_actuator_angle || 0, ewa = d.ew_actuator_angle || 0;
         setEl(`s${p}-nsa`, fmt(nsa, 1));
         setEl(`s${p}-nse`, fmt(d.ns_actuator_extension, 0));
@@ -1433,7 +1443,17 @@ async function refreshCompare() {
             const pwr = parseFloat(d.power_output) || 0, online = isRecent(d.timestamp);
             powers.push(pwr);
             const bc = sys.type === 'exp' ? 'badge-exp' : 'badge-ctrl', oc = online ? 'ob-on' : 'ob-off', ot = online ? '連線中' : '離線';
-            rows.push(`<tr><td><span class="${bc}">${sys.name}</span></td><td class="fw-bold" style="color:${sys.color}">${pwr.toFixed(2)}</td><td>${d.ns_actuator_angle?.toFixed(1) ?? '--'}</td><td>${d.ew_actuator_angle?.toFixed(1) ?? '--'}</td><td><span class="ob ${oc}"><span class="dot"></span>${ot}</span></td></tr>`);
+            // β/φ:優先用上傳的 panel_tilt/panel_azimuth,否則由 γ/ζ 換算(tiptilt→azalt)
+            let betaV = (d.panel_tilt !== null && d.panel_tilt !== undefined) ? parseFloat(d.panel_tilt) : null;
+            let phiV  = (d.panel_azimuth !== null && d.panel_azimuth !== undefined) ? parseFloat(d.panel_azimuth) : null;
+            if ((betaV === null || phiV === null) && d.ns_actuator_angle != null && d.ew_actuator_angle != null) {
+                const g = d.ns_actuator_angle * Math.PI / 180, z = d.ew_actuator_angle * Math.PI / 180;
+                const xx = Math.sin(z), yy = Math.sin(g) * Math.cos(z), zz = Math.cos(g) * Math.cos(z);
+                betaV = Math.acos(Math.max(-1, Math.min(1, zz))) * 180 / Math.PI;
+                phiV = Math.atan2(xx, yy) * 180 / Math.PI;
+                if (phiV < 0) phiV += 360;
+            }
+            rows.push(`<tr><td><span class="${bc}">${sys.name}</span></td><td class="fw-bold" style="color:${sys.color}">${pwr.toFixed(2)}</td><td>${betaV !== null ? betaV.toFixed(1) : '--'}</td><td>${phiV !== null ? phiV.toFixed(1) : '--'}</td><td>${d.ns_actuator_angle?.toFixed(1) ?? '--'}</td><td>${d.ew_actuator_angle?.toFixed(1) ?? '--'}</td><td><span class="ob ${oc}"><span class="dot"></span>${ot}</span></td></tr>`);
 
             // 若選的是今天，把最新值補到對應 10 分鐘 slot
             if (cmpIsToday() && cmpLineChart && online && d.timestamp) {
@@ -2046,9 +2066,9 @@ function csvGeneratePanelPlot() {
             return { type: 'line', yAxisID: 'y', label: p, data, borderColor: color, backgroundColor: 'transparent', tension: 0.2, pointRadius: 1, borderWidth: 1.5, spanGaps: false, order: i + 1 };
         });
     }
-    // 照度柱狀圖（金色低飽和，呼應日照語意並貼合 navy/gold 配色系統）
+    // 照度柱狀圖（改回粉紅，跟折線群明顯區隔）
     datasets.push({ type: 'bar', yAxisID: 'y2', label: 'Illumination (W/m²)', data: illumData,
-        backgroundColor: 'rgba(212, 164, 55, 0.22)', borderColor: 'rgba(184, 134, 11, 0.45)',
+        backgroundColor: 'rgba(248, 187, 208, 0.55)', borderColor: 'rgba(236, 64, 122, 0.55)',
         borderWidth: 1, borderRadius: 2, order: 99 });
     const ctx = $('csv-panel-chart'); if (!ctx) return;
     const existing = Chart.getChart(ctx); if (existing) existing.destroy();
@@ -2345,7 +2365,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadResearchKpi('all');
     refreshOverview();
     // 預載入 live monitor 第 1 個系統
-    liveSelect(1);
+    liveSelect(4);  // 預設打開實驗組 I (system_id=4)
     // 自動 5 秒刷新
     setInterval(() => {
         refreshOverview();

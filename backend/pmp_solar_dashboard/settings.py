@@ -4,7 +4,9 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # 安全設定
-SECRET_KEY = os.environ.get('SECRET_KEY', 'your-default-secret-key')
+# 真實值由 .env.dev / 環境變數提供；不在原始碼寫死，避免 push 到 git 外洩。
+# 未設定時留空 → Django 會在啟動時報錯（fail-loud，刻意行為）。
+SECRET_KEY = os.environ.get('SECRET_KEY', '')
 DEBUG = int(os.environ.get('DEBUG', default=0))
 YOUR_PUBLIC_IP = "140.114.59.214"  # 替換為實際IP
 YOUR_LOCAL_IP = "192.168.0.100"
@@ -83,7 +85,7 @@ DATABASES = {
         'ENGINE': os.environ.get('SQL_ENGINE', 'django.db.backends.mysql'),
         'NAME': os.environ.get('SQL_DATABASE', 'solar_tracking_db'),
         'USER': os.environ.get('SQL_USER', 'solar_user'),
-        'PASSWORD': os.environ.get('SQL_PASSWORD', 'userpassword123'),
+        'PASSWORD': os.environ.get('SQL_PASSWORD', ''),  # 由 .env.dev 提供，不寫死
         'HOST': os.environ.get('SQL_HOST', 'localhost'),
         'PORT': os.environ.get('SQL_PORT', '3306'),
     }
@@ -135,10 +137,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 Z3A_BASE_URL = os.environ.get('Z3A_BASE_URL', 'https://server.qiyunwulian.com:12341')
 Z3A_PHONE    = os.environ.get('Z3A_PHONE',    '')          # 手機號，用於 token 到期後自動重新登入
 Z3A_PASSWORD = os.environ.get('Z3A_PASSWORD', '')          # 密碼
-# 初始 token：直接貼入目前有效 token，或留空讓系統用帳密登入
-Z3A_TOKEN    = os.environ.get(
-    'Z3A_TOKEN',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
-    '.eyJQaG9uZU51bWJlciI6IjEzNTg0ODA5MzUzIiwiZXhwIjoxNzc4NjQ2MDQwLCJpc3MiOiJ3d3cuaW90Ny5jbiJ9'
-    '.UkjrCG_dUUcJzYkk9LYsSYqS8njW14sVWCJnMce2qSQ'
-)
+# 初始 token：由 .env.dev 的 Z3A_TOKEN 提供（每 ~14 天從 Fiddler 抓新的貼進去）。
+# 不在原始碼寫死真實 token，避免 push 到 GitHub 外洩。留空時系統會嘗試用帳密登入。
+Z3A_TOKEN    = os.environ.get('Z3A_TOKEN', '')

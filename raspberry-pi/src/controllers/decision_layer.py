@@ -3,6 +3,9 @@
 """
 decision_layer.py
 =================
+【狀態：v5 升級模組，尚未整合進生產部署。詳見 raspberry-pi/INTEGRATION_STATUS.md】
+生產部署目前用 deploy/ 的 V2 控制器（其 _is_worth_moving 為簡化版）；本模組為下一階段 v5 升級用。
+
 論文 5.4 實驗組策略「效益評估層」：決定是否值得移動
 
 輸入：當前角度、目標角度、當前功率、預測功率、推桿能耗特性
@@ -192,5 +195,5 @@ if __name__ == '__main__':
     r = layer.evaluate(current_tilt=20.1, current_azi=180.2,
                        target_tilt=20.3, target_azi=180.0,
                        current_power_w=150, predicted_power_w=160)
-    print(f"Case 4 (在目標附近): should_move={r.should_move}")
-    print(f"  reason: {r.reason}\n")
+    print(f"Case 4 (already near target): should_move={r.should_move}")
+    print(f"  reason: {r.reason}")

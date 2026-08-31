@@ -20,6 +20,27 @@ def _get_data_path():
                    "/usr/src/app/data/combined_solar_data_20250301_20260406_processed.csv")
 
 
+# 能量積分上下限（小時）：間隔上限 15 分鐘、每片面板首筆補 10 分鐘標準取樣間隔
+ENERGY_GAP_CAP_H = 15.0 / 60.0
+ENERGY_FIRST_SAMPLE_H = 10.0 / 60.0
+
+
+def compute_energy_wh(df):
+    """以實際取樣間隔積分瞬時功率，回傳一個對齊 df.index 的 e_wh Series。
+
+    規則（方案B，詳見 get_df 內註解）：
+      - 間隔 = 該筆與同面板前一筆的時間差，上限 15 分鐘（避免離線大缺口灌水）
+      - 每片面板第一筆無前值 → 補 10 分鐘
+      - 重複 (panel_id, timestamp) 時間差為 0 → 該筆能量 0（天然去重）
+
+    抽成純函式以便單元測試；get_df() 內呼叫前已先 sort_values(["panel_id","timestamp"])。
+    """
+    dt_h = (df.groupby("panel_id")["timestamp"].diff()
+              .dt.total_seconds() / 3600.0)
+    dt_h = dt_h.clip(upper=ENERGY_GAP_CAP_H).fillna(ENERGY_FIRST_SAMPLE_H)
+    return (df["power_W"].astype("float64") * dt_h).astype("float32")
+
+
 def invalidate_df_cache():
     """手動清除快取，下次呼叫 get_df() 會重新從 CSV 載入。"""
     global _df, _df_mtime
@@ -89,10 +110,7 @@ def get_df():
             #   - 重複 (panel_id, timestamp) 的後續筆時間差為 0 → 該筆能量 0，
             #     天然去重，不會重複計算
             df = df.sort_values(["panel_id", "timestamp"])
-            dt_h = (df.groupby("panel_id")["timestamp"].diff()
-                      .dt.total_seconds() / 3600.0)
-            dt_h = dt_h.clip(upper=15.0 / 60.0).fillna(10.0 / 60.0)
-            df["e_wh"] = (df["power_W"].astype("float64") * dt_h).astype("float32")
+            df["e_wh"] = compute_energy_wh(df)
 
             _df = df
             try:

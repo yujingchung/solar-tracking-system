@@ -88,10 +88,11 @@
 
   /* Easings */
   --ease: cubic-bezier(.4, 0, .2, 1);
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
 
   /* Typography */
-  --font-sans: 'Segoe UI', 'Microsoft JhengHei', '微軟正黑體', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-mono: Consolas, 'Courier New', ui-monospace, Menlo, monospace;
+  --font-sans: 'Outfit', 'Noto Sans TC', 'Microsoft JhengHei', '微軟正黑體', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', Consolas, 'Courier New', ui-monospace, Menlo, monospace;
   --font-serif: 'Noto Serif TC', 'Source Han Serif TC', '思源宋體', Georgia, serif;
 
   /* Type scale */
@@ -127,7 +128,7 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { -webkit-text-size-adjust: 100%; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+html { -webkit-text-size-adjust: 100%; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; scroll-behavior: smooth; }
 body {
   background: var(--canvas);
   font-family: var(--font-sans);
@@ -136,6 +137,7 @@ body {
   color: var(--ink-2);
   font-variant-numeric: tabular-nums;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* App header (學術風: 深藍底 + 金線下緣) */
@@ -305,6 +307,27 @@ body {
 /* Tiny labels (timestamps etc) */
 .ts-label { font-size: 0.72rem; color: var(--ink-5); }
 
+/* Form/control labels (原 HTML 已使用但漏定義) */
+.t-label { font-size: 0.72rem; font-weight: 700; color: var(--ink-5); letter-spacing: 0.05em; }
+
+/* Live monitor big number (原 HTML 已使用但漏定義) */
+.num-display { font-family: var(--font-mono); font-size: 2.6rem; font-weight: 800; line-height: 1.05; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+.unit { font-size: 0.78rem; font-weight: 600; color: var(--ink-4); }
+
+/* Chart container (取代散落的 inline height/position) */
+.chart-box { position: relative; height: var(--h, 300px); }
+
+/* Interaction states: 按壓回饋 + 鍵盤 focus */
+.btn:active, .pill-btn:active, .season-btn:active, .tab-btn:active, .status-pill:active { transform: translateY(1px); }
+.btn:focus-visible, .pill-btn:focus-visible, .season-btn:focus-visible, .tab-btn:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+.tab-btn:focus-visible { box-shadow: inset var(--shadow-focus); }
+
+/* Skeleton shimmer 載入骨架 */
+.skel { position: relative; overflow: hidden; background: var(--line-2); border-radius: var(--r-1); height: 14px; }
+.skel::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,0.75), transparent); animation: skel-shimmer 1.4s var(--ease) infinite; }
+@keyframes skel-shimmer { 100% { transform: translateX(100%); } }
+.skel-stack { display: flex; flex-direction: column; gap: 12px; padding: 8px 0; }
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -319,11 +342,7 @@ body {
 .gold-line { display: block; height: 2px; background: var(--gold-2); border-radius: 1px; }
 .divider-gold { height: 1px; background: linear-gradient(90deg, transparent 0%, var(--gold-2) 50%, transparent 100%); margin: var(--s-4) 0; opacity: 0.5; }
 
-/* CSV / Z3A sub-pill colors (per-tab accent) */
-.tab-btn.t-csv.active { border-bottom-color: var(--gold-2); }
-.tab-btn.t-z3a.active { border-bottom-color: var(--rose); }
-.tab-btn.t-cmp.active { border-bottom-color: var(--navy-3); }
-.tab-btn.t-dl.active { border-bottom-color: var(--gold-2); }
+/* Active tab 統一金線（2026-06-11 依 taste-skill 單一 accent 原則收斂，移除 per-tab rose/navy） */
 
 /* Logo SVG container */
 .logo-svg svg { display: block; }

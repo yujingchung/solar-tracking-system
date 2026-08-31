@@ -3,6 +3,10 @@
 """
 dual_actuator.py
 ================
+【狀態：v5 升級模組，尚未上機測試。詳見 raspberry-pi/INTEGRATION_STATUS.md】
+生產部署目前用 deploy/ 的 V2 控制器（推桿邏輯為 stub）；本模組為下一階段 v5 升級用，
+從 test_actuator.py 抽出，需在實機驗證 GPIO 腳位與行程-角度校正後才可用於生產。
+
 雙軸推桿硬體模組（自 test_actuator.py 抽出為共用模組）
 
 提供：

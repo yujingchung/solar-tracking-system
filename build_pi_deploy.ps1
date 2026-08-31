@@ -99,6 +99,16 @@ foreach ($pi in $Pis) {
         Write-Host "  ✓ anfis_layer.py"
     }
 
+    # 2c. ldr_module.py(ANFIS 與 traditional 都需要;4 方位 MCP3008 讀取 + median + calibration)
+    $SrcLdrModule = Join-Path $ProjectRoot 'raspberry-pi\src\controllers\ldr_module.py'
+    if (Test-Path $SrcLdrModule) {
+        Copy-Item -Force $SrcLdrModule (Join-Path $piDir 'ldr_module.py')
+        Write-Host "  ✓ ldr_module.py"
+    } else {
+        Write-Host "  ⚠ ldr_module.py 來源不存在,略過" -ForegroundColor Yellow
+    }
+    # 注意:channel_calibration.json 不在此複製(每台 Pi 有自己的校正,部署後手動放入)
+
     # 3. config.json (informational, 也可給未來改為動態載入用)
     $cfg = [PSCustomObject]@{
         system_id   = $sid

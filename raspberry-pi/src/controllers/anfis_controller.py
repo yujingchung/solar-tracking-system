@@ -49,6 +49,7 @@ import math
 import time
 import json
 import logging
+import threading
 import numpy as np
 import requests
 from datetime import datetime
@@ -62,6 +63,20 @@ try:
     HARDWARE_AVAILABLE = True
 except ImportError:
     HARDWARE_AVAILABLE = False
+
+# RPi.GPIO 給推桿 H 橋驅動用(dual_actuator_upload.py 證實可行)
+try:
+    import RPi.GPIO as GPIO
+    RPI_GPIO_AVAILABLE = True
+except ImportError:
+    RPI_GPIO_AVAILABLE = False
+
+# ── LDR 模組(spidev + channel calibration + median 抗噪)─────────
+try:
+    from ldr_module import LDRReader
+    LDR_MODULE_AVAILABLE = True
+except ImportError:
+    LDR_MODULE_AVAILABLE = False
 
 # ── ANFIS 模型導入（需 tensorflow + 自訂 SimpleFuzzyLayer）─────
 try:
@@ -77,12 +92,18 @@ except ImportError:
 # 設定
 # ════════════════════════════════════════════════════════════════
 CONFIG = {
-    # Django API
+    # Django API(預設指向 Tailscale 生產 URL,本機開發改成 http://localhost:8000/api)
     'system_id': 7,
-    'api_url': 'http://localhost:8000/api',
+    'api_url': 'https://solar-dashboard.tail7c1eb9.ts.net/api',
 
     # 模擬模式（True = 允許在無硬體環境下以隨機值測試；False = 生產模式，硬體失敗直接拋例外）
     'simulation_mode': False,
+
+    # 分項模擬旗標（None = 跟隨 simulation_mode;True/False = 個別覆蓋)
+    # 用途:LDR 已裝、但 MPPT/推桿尚未時,設 simulate_ldr=False 同時 simulation_mode=True
+    'simulate_ldr':      None,    # None / True / False
+    'simulate_mppt':     None,
+    'simulate_actuator': None,
 
     # MCP3008
     'mcp3008': {
@@ -140,9 +161,9 @@ CONFIG = {
         'max_tl_adj':       1.0,   # 單次最大傾角調整（度）
     },
 
-    # 時間
+    # 時間(2026-06-23 起,end 從 18 → 19 抓傍晚日落充電窗口)
     'sun_start_hour':   6,
-    'sun_end_hour':    18,
+    'sun_end_hour':    19,
     'interval_seconds': 600,    # 10 分鐘
 
     # 東方初始位置（tip-tilt 座標）
@@ -166,11 +187,47 @@ CONFIG = {
         'pi_channel':  2,      # CH2 = 樹莓派本身
     },
 
-    # MPPT RS485 設定（太陽能板電壓/電流）
+    # MPPT RS485 設定（EPEVER Tracer-AN-G3 over /dev/ttyUSB0）
     'mppt': {
         'port':     '/dev/ttyUSB0',
-        'baudrate': 9600,
-        # TODO：確認 MPPT 控制器通訊協定（Modbus RTU 或自訂格式）後補充
+        'baudrate': 115200,
+        'slave':    1,
+    },
+
+    # 推桿 GPIO 設定(2026-06-20 raspberrypi-1 現場實測;dual_actuator_upload.py 命名反了,以此為準)
+    # H 橋 4-pin 驅動:extend = blue_high + brown_low HIGH;retract = brown_high + blue_low HIGH
+    'actuator': {
+        # NS / 南北 / 傾角(γ)— 對應 ANFIS β 主要組成
+        'ns_brown_high': 17, 'ns_blue_high': 27,
+        'ns_brown_low':  22, 'ns_blue_low':  23,
+        # EW / 東西 / 方位角(ζ)
+        'ew_brown_high': 5,  'ew_blue_high': 6,
+        'ew_brown_low': 13,  'ew_blue_low': 19,
+        # 動作時長(秒/度)— 開迴路估算,需現場校正
+        'ns_sec_per_deg': 0.5,
+        'ew_sec_per_deg': 0.5,
+        # 方向慣例:+1 = γ↑ 用 extend(往南),如果實測方向反了改 -1
+        'ns_extend_dir':  +1,
+        'ew_extend_dir':  +1,
+        # 安全限制
+        'min_move_deg':   0.5,    # 角度差小於此值不動(避免抖動)
+        'max_move_sec':   30.0,   # 單次最大移動秒數
+
+        # 霍爾感測器(2026-06-23 新增,閉迴路位置回授)
+        'hall': {
+            'enabled':       True,   # False 退回開迴路時間驅動
+            'pulses_per_mm': 54.19,  # dual_actuator_upload.py 實測值
+            # NS 推桿(南北/傾角):24/25 兩線
+            'ns_hall1':      24, 'ns_hall2': 25,
+            'ns_stroke_mm':  206,
+            # EW 推桿(東西/方位):16/26 兩線
+            'ew_hall1':      16, 'ew_hall2': 26,
+            'ew_stroke_mm':  406,
+            # 閉迴路移動最小門檻(mm)+ 安全 timeout
+            'min_move_mm':   2.0,
+            'move_timeout':  30.0,
+            'tolerance_mm':  1.5,    # 到位容差
+        },
     },
 }
 
@@ -184,6 +241,20 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+
+def _is_simulating(component: str) -> bool:
+    """
+    判斷某個元件(ldr / mppt / actuator)是否該用模擬值。
+    優先看 simulate_<component>(若 None 則 fallback 到 simulation_mode 總開關)。
+
+    例:simulation_mode=True、simulate_ldr=False → LDR 走真實硬體,其他模擬。
+    """
+    key = f'simulate_{component}'
+    override = CONFIG.get(key)
+    if override is not None:
+        return bool(override)
+    return bool(CONFIG.get('simulation_mode', False))
 
 
 # ════════════════════════════════════════════════════════════════
@@ -233,8 +304,10 @@ class INA3221Reader:
     CH2 = 樹莓派本身
     分流電阻：0.1Ω（標準模組預設）
     """
-    _REG_SHUNT = {1: 0x02, 2: 0x04, 3: 0x06}
-    _REG_BUS   = {1: 0x03, 2: 0x05, 3: 0x07}
+    # 2026-07-14 修正 off-by-1 bug(舊值都 +1,實際 INA3221 datasheet:)
+    # 0x01=CH1 SHUNT, 0x02=CH1 BUS, 0x03=CH2 SHUNT, 0x04=CH2 BUS, 0x05=CH3 SHUNT, 0x06=CH3 BUS
+    _REG_SHUNT = {1: 0x01, 2: 0x03, 3: 0x05}
+    _REG_BUS   = {1: 0x02, 2: 0x04, 3: 0x06}
     _LSB_SHUNT = 40e-6   # 40 µV / LSB
     _LSB_BUS   = 8e-3    #  8 mV / LSB
 
@@ -244,7 +317,9 @@ class INA3221Reader:
         self._shunt = cfg['shunt_ohm']
         self._bus   = None
 
-        if HARDWARE_AVAILABLE and not CONFIG['simulation_mode']:
+        # INA3221 跟著 mppt / actuator 共用「電力量測」這個元件分類,
+        # 任何一個不模擬就會試著啟動 I2C
+        if HARDWARE_AVAILABLE and not (_is_simulating('mppt') and _is_simulating('actuator')):
             try:
                 self._bus = smbus2.SMBus(1)
                 logger.info("INA3221 初始化成功（I2C 0x%02X）", self._addr)
@@ -257,8 +332,8 @@ class INA3221Reader:
         return raw - 0x10000 if raw > 0x7FFF else raw
 
     def read_channel(self, ch: int) -> dict:
-        """讀取指定通道電壓（V）與電流（A）"""
-        if CONFIG['simulation_mode']:
+        """讀取指定通道電壓（V）與電流（A）。CH1=推桿、CH2=Pi,共用 actuator 模擬旗標"""
+        if _is_simulating('actuator'):
             import random
             return {
                 'voltage': round(random.uniform(11.5, 12.5), 3),
@@ -290,30 +365,102 @@ class INA3221Reader:
 # ════════════════════════════════════════════════════════════════
 # MPPT RS485 讀取（太陽能板電壓/電流）
 # ════════════════════════════════════════════════════════════════
+# Module-level singleton(避免 read_power 與 read_mppt_power 同時開 serial 打架)
+_mppt_instrument = None
+
+
 def read_mppt_power() -> dict:
     """
-    從 MPPT 控制器讀取太陽能板電壓/電流（RS485-to-USB 序列埠）。
-    回傳 {'voltage': V, 'current': A, 'power': W}
+    從 EPEVER Tracer-AN-G3 經 Modbus RTU 讀 PV 端 + 電池端 V/I/P。
+    回傳 {
+        'voltage': PV V,
+        'current': PV A,
+        'power':   PV W,
+        'batt_voltage': 電池 V,
+        'batt_current': 充電電流 A,(>0 充電,< 0 放電)
+        'batt_power':   充電功率 W,
+    }
 
-    TODO：確認 MPPT 控制器通訊協定後實作。
-    實作範例（Modbus RTU）：
-        import minimalmodbus
-        instrument = minimalmodbus.Instrument(CONFIG['mppt']['port'], 1)
-        instrument.serial.baudrate = CONFIG['mppt']['baudrate']
-        voltage = instrument.read_register(0x0101, numberOfDecimals=1)
-        current = instrument.read_register(0x0102, numberOfDecimals=2)
-        return {'voltage': voltage, 'current': current, 'power': voltage * current}
+    Register map(EPEVER Tracer-AN-G3 input registers, function code 4):
+        0x3100 = PV voltage           (÷100 → V)
+        0x3101 = PV current           (÷100 → A)
+        0x3102/0x3103 = PV power L/H  (組合 ÷100 → W)
+        0x3104 = Battery voltage      (÷100 → V)
+        0x3105 = Battery charge curr  (signed, ÷100 → A)
+        0x3106/0x3107 = Battery power L/H (組合 ÷100 → W)
+        0x311A = Battery SOC          (整數 0-100,直接讀不除)
     """
-    if CONFIG['simulation_mode']:
+    if _is_simulating('mppt'):
         import random
         v = round(random.uniform(14.0, 18.0), 2)
         i = round(random.uniform(0.5, 5.0),   2)
-        return {'voltage': v, 'current': i, 'power': round(v * i, 2)}
+        bv = round(random.uniform(12.5, 14.5), 2)
+        bi = round(random.uniform(0.0, 3.0),   2)
+        soc = random.randint(85, 100)
+        return {
+            'voltage': v, 'current': i, 'power': round(v * i, 2),
+            'batt_voltage': bv, 'batt_current': bi,
+            'batt_power': round(bv * bi, 2),
+            'batt_soc': soc,
+        }
 
-    raise NotImplementedError(
-        "MPPT RS485 讀取尚未實作，請先確認通訊協定後填入，"
-        "或設定 simulation_mode=True 進行測試"
-    )
+    global _mppt_instrument
+    try:
+        if _mppt_instrument is None:
+            import minimalmodbus
+            cfg = CONFIG.get('mppt', {})
+            port  = cfg.get('port',     '/dev/ttyUSB0')
+            slave = cfg.get('slave',    1)
+            baud  = cfg.get('baudrate', 115200)
+            _mppt_instrument = minimalmodbus.Instrument(port, slave)
+            _mppt_instrument.serial.baudrate = baud
+            _mppt_instrument.serial.bytesize = 8
+            _mppt_instrument.serial.parity   = 'N'
+            _mppt_instrument.serial.stopbits = 1
+            _mppt_instrument.serial.timeout  = 1.0
+            _mppt_instrument.mode = minimalmodbus.MODE_RTU
+            _mppt_instrument.clear_buffers_before_each_transaction = True
+            logger.info("EPEVER MPPT 連線: %s baud=%d slave=%d", port, baud, slave)
+
+        # PV 端
+        v   = _mppt_instrument.read_register(0x3100, 0, functioncode=4) / 100.0
+        i   = _mppt_instrument.read_register(0x3101, 0, functioncode=4) / 100.0
+        p_l = _mppt_instrument.read_register(0x3102, 0, functioncode=4)
+        p_h = _mppt_instrument.read_register(0x3103, 0, functioncode=4)
+        power = ((p_h << 16) | p_l) / 100.0
+
+        # 電池端(新增)
+        bv = _mppt_instrument.read_register(0x3104, 0, functioncode=4) / 100.0
+        # 充電電流可能是 signed(2 補數),需手動處理
+        bi_raw = _mppt_instrument.read_register(0x3105, 0, functioncode=4)
+        if bi_raw > 0x7FFF:
+            bi_raw -= 0x10000
+        bi = bi_raw / 100.0
+        bp_l = _mppt_instrument.read_register(0x3106, 0, functioncode=4)
+        bp_h = _mppt_instrument.read_register(0x3107, 0, functioncode=4)
+        bp = ((bp_h << 16) | bp_l) / 100.0
+
+        # SOC (0-100,整數,EPEVER 內建估算)
+        try:
+            soc = _mppt_instrument.read_register(0x311A, 0, functioncode=4)
+        except Exception:
+            soc = None
+
+        logger.info("MPPT 讀取: PV V=%.2fV I=%.2fA P=%.2fW | Batt V=%.2fV I=%.2fA P=%.2fW SOC=%s%%",
+                    v, i, power, bv, bi, bp, soc if soc is not None else 'N/A')
+        return {
+            'voltage': round(v, 2), 'current': round(i, 2), 'power': round(power, 2),
+            'batt_voltage': round(bv, 2), 'batt_current': round(bi, 2),
+            'batt_power':   round(bp, 2),
+            'batt_soc':     soc,
+        }
+    except Exception as e:
+        logger.warning("MPPT 讀取失敗 fallback 0: %s", e)
+        return {
+            'voltage': 0.0, 'current': 0.0, 'power': 0.0,
+            'batt_voltage': 0.0, 'batt_current': 0.0, 'batt_power': 0.0,
+            'batt_soc': None,
+        }
 
 
 # ════════════════════════════════════════════════════════════════
@@ -410,7 +557,18 @@ class SensorReader:
 
     def __init__(self):
         cfg = CONFIG['mcp3008']
-        if HARDWARE_AVAILABLE:
+        # 新版優先用 ldr_module(spidev + channel calibration + median 抗噪)
+        # 舊版 fallback 用 gpiozero.MCP3008 single-shot 讀取
+        self._ldr_reader = None
+        if LDR_MODULE_AVAILABLE and not _is_simulating('ldr'):
+            try:
+                self._ldr_reader = LDRReader(samples_per_read=20,
+                                             spi_bus=cfg['spi_port'],
+                                             spi_device=cfg['device'])
+                logger.info("LDR 讀取:使用 ldr_module(median 20 取樣 + channel calibration)")
+            except Exception as e:
+                logger.warning("ldr_module 初始化失敗,fallback gpiozero:%s", e)
+        if self._ldr_reader is None and HARDWARE_AVAILABLE:
             self._adc = {
                 'east':  MCP3008(channel=cfg['east_ch'],
                                  port=cfg['spi_port'], device=cfg['device']),
@@ -428,23 +586,30 @@ class SensorReader:
         return max(0.0, raw_adc * cal['slope'] + cal['intercept'])
 
     def read_ldr_raw(self) -> Dict[str, float]:
-        """讀取 ADC 原始值（0-1023）"""
-        if CONFIG['simulation_mode']:
+        """讀取 ADC 原始值(0-1023)。優先用 ldr_module(median + calibration),fallback gpiozero。"""
+        if _is_simulating('ldr'):
             import random
             base = random.uniform(300, 800)
             return {d: round(base + random.uniform(-60, 60))
                     for d in ('east', 'west', 'south', 'north')}
 
+        # 新版:ldr_module 已套校正,直接回傳
+        if self._ldr_reader is not None:
+            try:
+                return self._ldr_reader.read_calibrated()
+            except Exception as e:
+                raise RuntimeError(f"LDR 讀取失敗(ldr_module): {e}") from e
+
+        # 舊版 fallback:gpiozero single-shot(無校正、無 median)
         if not HARDWARE_AVAILABLE:
             raise RuntimeError(
-                "硬體不可用（gpiozero 未安裝），若要測試請在 CONFIG 中設定 simulation_mode=True"
+                "硬體不可用(gpiozero / spidev 未安裝),若要測試請在 CONFIG 中設定 simulate_ldr=True"
             )
-
         try:
             return {d: round(self._adc[d].value * 1023)
                     for d in ('east', 'west', 'south', 'north')}
         except Exception as e:
-            raise RuntimeError(f"LDR 讀取失敗（感測器可能斷線或接觸不良）: {e}") from e
+            raise RuntimeError(f"LDR 讀取失敗(感測器可能斷線或接觸不良): {e}") from e
 
     def read_illumination(self) -> Tuple[Dict[str, float], float]:
         """
@@ -457,31 +622,91 @@ class SensorReader:
         return cal, avg
 
     def read_power(self) -> float:
-        """
-        讀取目前面板功率（W）。
-        TODO：接 INA3221 I2C，讀取電壓×電流。
-              實作後移除 simulation_mode fallback。
-        """
-        if CONFIG['simulation_mode']:
-            import random
-            return random.uniform(50, 200)
-
-        # TODO 範例（INA3221 實作後取消註解）：
-        # from ina3221 import INA3221
-        # sensor = INA3221(1, address=0x40)
-        # return sensor.get_bus_voltage(1) * sensor.get_current(1)
-        raise NotImplementedError(
-            "INA3221 功率讀取尚未實作，請先在 CONFIG 中設定 simulation_mode=True 進行測試"
-        )
+        """讀取目前面板功率(W),委派給 read_mppt_power() 避免 serial 打架"""
+        return float(read_mppt_power().get('power', 0.0))
 
 
 # ════════════════════════════════════════════════════════════════
 # 推桿控制器
 # ════════════════════════════════════════════════════════════════
+class HallSensorMonitor:
+    """
+    霍爾感測器位置監控(2026-06-23 新增,從 dual_actuator_upload.py 移植 + 改良)。
+
+    背景 thread 偵測 GPIO 邊緣,依當前驅動方向(由 set_direction 提示)加減 pulse,
+    換算成位置 mm。初始位置由 ActuatorController 從 CONFIG['initial_position'] 設定,
+    不做 homing(假設啟動時推桿位置已知)。
+    """
+
+    def __init__(self, name: str, hall1_pin: int, hall2_pin: int,
+                 pulses_per_mm: float, stroke_mm: float,
+                 initial_position_mm: float = 0.0):
+        self.name = name
+        self.hall1_pin     = hall1_pin
+        self.hall2_pin     = hall2_pin
+        self.pulses_per_mm = pulses_per_mm
+        self.stroke_mm     = stroke_mm
+        self.pulse_count   = int(initial_position_mm * pulses_per_mm)
+        self.position_mm   = initial_position_mm
+        self._direction    = +1     # +1=extend / -1=retract;由 ActuatorController 設定
+        self.monitoring    = False
+        self._thread       = None
+
+        if RPI_GPIO_AVAILABLE:
+            try:
+                GPIO.setup([hall1_pin, hall2_pin], GPIO.IN,
+                           pull_up_down=GPIO.PUD_UP)
+                self._last_hall1 = GPIO.input(hall1_pin)
+                self.monitoring  = True
+                self._thread = threading.Thread(target=self._monitor_loop, daemon=True)
+                self._thread.start()
+                logger.info("Hall %s 啟動: pin=%d,%d init=%.1f mm (stroke=%.0f mm)",
+                            name, hall1_pin, hall2_pin, initial_position_mm, stroke_mm)
+            except Exception as e:
+                logger.warning("Hall %s 初始化失敗: %s", name, e)
+
+    def set_direction(self, direction: int):
+        """提示當前驅動方向 — 在打 GPIO 之前呼叫"""
+        self._direction = +1 if direction >= 0 else -1
+
+    def _monitor_loop(self):
+        """偵測 hall1 邊緣 → 加減 pulse"""
+        while self.monitoring:
+            try:
+                hall1 = GPIO.input(self.hall1_pin)
+                if hall1 != self._last_hall1:
+                    self.pulse_count += self._direction
+                    self.position_mm  = self.pulse_count / self.pulses_per_mm
+                    # 限制在 [0, stroke]
+                    self.position_mm  = max(0.0, min(self.stroke_mm, self.position_mm))
+                    self._last_hall1  = hall1
+                time.sleep(0.0001)
+            except Exception:
+                time.sleep(0.01)
+
+    def get_position_mm(self) -> float:
+        return self.position_mm
+
+    def get_position_percent(self) -> float:
+        return (self.position_mm / self.stroke_mm) * 100.0 if self.stroke_mm > 0 else 0.0
+
+    def reset_position(self, position_mm: float = 0.0):
+        self.position_mm = position_mm
+        self.pulse_count = int(position_mm * self.pulses_per_mm)
+
+    def stop(self):
+        self.monitoring = False
+
+
 class ActuatorController:
     """
     雙軸推桿控制（同對照組，但以傾角方位角為主要介面）。
     外部呼叫 move_to_azalt(beta, phi) 即可。
+
+    2026-06-20 實作 _move_to_tiptilt 開迴路時間驅動(取代原 stub):
+      - NS pin group(17/27/22/23):γ extend → 南,retract → 北
+      - EW pin group(5/6/13/19): ζ extend → 西,retract → 東
+      - 時長 = abs(角度差) × CONFIG['actuator']['<axis>_sec_per_deg']
     """
 
     def __init__(self):
@@ -490,6 +715,77 @@ class ActuatorController:
         self.zeta  = init['zeta']
         # 目前傾角/方位角（由 tip-tilt 換算）
         self.beta, self.phi = tiptilt_to_azalt(self.gamma, self.zeta)
+
+        # GPIO 初始化(只在真實模式且 RPi.GPIO 可用時)
+        self._gpio_ready = False
+        self.ns_hall = None
+        self.ew_hall = None
+
+        if RPI_GPIO_AVAILABLE and not _is_simulating('actuator'):
+            try:
+                cfg = CONFIG['actuator']
+                GPIO.setmode(GPIO.BCM)
+                GPIO.setwarnings(False)
+                self._all_pins = [
+                    cfg['ns_brown_high'], cfg['ns_blue_high'],
+                    cfg['ns_brown_low'],  cfg['ns_blue_low'],
+                    cfg['ew_brown_high'], cfg['ew_blue_high'],
+                    cfg['ew_brown_low'],  cfg['ew_blue_low'],
+                ]
+                GPIO.setup(self._all_pins, GPIO.OUT)
+                GPIO.output(self._all_pins, GPIO.LOW)
+                self._gpio_ready = True
+                logger.info("推桿 GPIO 初始化成功 NS=%s EW=%s",
+                            self._all_pins[:4], self._all_pins[4:])
+
+                # 霍爾感測器初始化(2026-06-23 新增)
+                hcfg = cfg.get('hall', {})
+                if hcfg.get('enabled', False):
+                    # 從 CONFIG 初始 γ/ζ 算對應 mm 位置
+                    ns_init_mm = self._gamma_to_mm(self.gamma)
+                    ew_init_mm = self._zeta_to_mm(self.zeta)
+                    self.ns_hall = HallSensorMonitor(
+                        'NS', hcfg['ns_hall1'], hcfg['ns_hall2'],
+                        hcfg['pulses_per_mm'], hcfg['ns_stroke_mm'], ns_init_mm)
+                    self.ew_hall = HallSensorMonitor(
+                        'EW', hcfg['ew_hall1'], hcfg['ew_hall2'],
+                        hcfg['pulses_per_mm'], hcfg['ew_stroke_mm'], ew_init_mm)
+                    logger.info("霍爾閉迴路啟用: NS init=%.1fmm EW init=%.1fmm",
+                                ns_init_mm, ew_init_mm)
+            except Exception as e:
+                logger.warning("推桿 GPIO 初始化失敗:%s", e)
+
+    # ── 角度 ↔ mm 線性映射 ────────────────────────────────────────
+    def _gamma_to_mm(self, gamma: float) -> float:
+        """γ(度)→ NS 推桿伸長量(mm),線性映射 γ_min→0、γ_max→stroke"""
+        hcfg = CONFIG['actuator']['hall']
+        g_min = CONFIG['gamma_min']
+        g_max = CONFIG['gamma_max']
+        return ((gamma - g_min) / (g_max - g_min)) * hcfg['ns_stroke_mm']
+
+    def _zeta_to_mm(self, zeta: float) -> float:
+        hcfg = CONFIG['actuator']['hall']
+        z_min = CONFIG['zeta_min']
+        z_max = CONFIG['zeta_max']
+        return ((zeta - z_min) / (z_max - z_min)) * hcfg['ew_stroke_mm']
+
+    def _mm_to_gamma(self, mm: float) -> float:
+        hcfg = CONFIG['actuator']['hall']
+        g_min = CONFIG['gamma_min']
+        g_max = CONFIG['gamma_max']
+        return g_min + (mm / hcfg['ns_stroke_mm']) * (g_max - g_min)
+
+    def _mm_to_zeta(self, mm: float) -> float:
+        hcfg = CONFIG['actuator']['hall']
+        z_min = CONFIG['zeta_min']
+        z_max = CONFIG['zeta_max']
+        return z_min + (mm / hcfg['ew_stroke_mm']) * (z_max - z_min)
+
+    def get_ns_position_mm(self) -> Optional[float]:
+        return self.ns_hall.get_position_mm() if self.ns_hall else None
+
+    def get_ew_position_mm(self) -> Optional[float]:
+        return self.ew_hall.get_position_mm() if self.ew_hall else None
 
     def move_to_azalt(self, target_beta: float, target_phi: float):
         """移動到目標傾角/方位角（轉換為 tip-tilt 後驅動推桿）"""
@@ -512,13 +808,175 @@ class ActuatorController:
         self.beta, self.phi = tiptilt_to_azalt(self.gamma, self.zeta)
         logger.info("回歸初始位置 γ=%.1f° ζ=%.1f°", self.gamma, self.zeta)
 
-    # ── 硬體驅動（TODO）────────────────────────────
+    # ── 硬體驅動(2026-06-20 開迴路時間驅動實作)──────────────────────
+    def _drive_pins(self, pins: tuple, action: str, duration: float):
+        """
+        pins = (brown_high, blue_high, brown_low, blue_low)
+        action ∈ {'extend','retract'};extend = 南/西,retract = 北/東
+        """
+        bh, blh, bl, bll = pins
+        if action == 'extend':
+            GPIO.output([bh, bll], GPIO.LOW)
+            time.sleep(0.01)
+            GPIO.output([blh, bl], GPIO.HIGH)
+        elif action == 'retract':
+            GPIO.output([blh, bl], GPIO.LOW)
+            time.sleep(0.01)
+            GPIO.output([bh, bll], GPIO.HIGH)
+        time.sleep(duration)
+        # 結束停止(四 pin 都 LOW)
+        GPIO.output([bh, blh, bl, bll], GPIO.LOW)
+
+    def _drive_until_target(self, pins: tuple, hall: 'HallSensorMonitor',
+                            target_mm: float, direction: int,
+                            timeout: float, tolerance: float) -> dict:
+        """
+        閉迴路驅動:打 GPIO + 同時 poll hall,到位即停。
+        direction: +1 extend / -1 retract
+        回傳 stats {'final_mm', 'actual_delta', 'duration'}
+        """
+        bh, blh, bl, bll = pins
+        # 提示 hall 當前方向(讓 pulse 計數正確加減)
+        hall.set_direction(direction)
+
+        # 啟動驅動
+        if direction > 0:
+            GPIO.output([bh, bll], GPIO.LOW)
+            time.sleep(0.01)
+            GPIO.output([blh, bl], GPIO.HIGH)
+        else:
+            GPIO.output([blh, bl], GPIO.LOW)
+            time.sleep(0.01)
+            GPIO.output([bh, bll], GPIO.HIGH)
+
+        start_mm = hall.get_position_mm()
+        start_t = time.time()
+        last_log = start_t
+
+        while True:
+            current_mm = hall.get_position_mm()
+            elapsed = time.time() - start_t
+
+            # 到位判斷:依方向看是否已過 target
+            reached = (current_mm >= target_mm - tolerance) if direction > 0 \
+                      else (current_mm <= target_mm + tolerance)
+            if reached:
+                break
+            if elapsed > timeout:
+                logger.warning("Hall 閉迴路超時:%s 當前=%.1fmm 目標=%.1fmm",
+                               hall.name, current_mm, target_mm)
+                break
+
+            # 每秒 log 一次進度
+            if time.time() - last_log > 1.0:
+                logger.debug("  %s 移動中 %.1f → %.1f mm (目標 %.1f)",
+                             hall.name, start_mm, current_mm, target_mm)
+                last_log = time.time()
+            time.sleep(0.01)
+
+        # 停
+        GPIO.output([bh, blh, bl, bll], GPIO.LOW)
+        final_mm = hall.get_position_mm()
+        return {
+            'final_mm': final_mm,
+            'actual_delta': final_mm - start_mm,
+            'duration': time.time() - start_t,
+        }
+
     def _move_to_tiptilt(self, target_gamma: float, target_zeta: float):
         """
-        TODO：根據霍爾感測器行程對照表，閉迴路移動到目標 tip-tilt 角度。
-        目前為軟體記錄，實際推桿未動作。
+        移動到 (target_gamma, target_zeta):
+          - 有 hall + enabled → 閉迴路位置驅動(到位即停)
+          - 無 hall → fallback 開迴路時間驅動
         """
-        pass
+        if _is_simulating('actuator'):
+            return
+        if not self._gpio_ready:
+            logger.warning("推桿 GPIO 未就緒,略過實際移動")
+            return
+
+        cfg  = CONFIG['actuator']
+        hcfg = cfg.get('hall', {})
+        use_hall = hcfg.get('enabled', False) and self.ns_hall is not None
+
+        if use_hall:
+            self._move_closed_loop(target_gamma, target_zeta)
+        else:
+            self._move_open_loop(target_gamma, target_zeta)
+
+    def _move_closed_loop(self, target_gamma: float, target_zeta: float):
+        """閉迴路:用 hall 真實位置回授,到位即停"""
+        cfg  = CONFIG['actuator']
+        hcfg = cfg['hall']
+        min_mm    = hcfg['min_move_mm']
+        timeout   = hcfg['move_timeout']
+        tol       = hcfg['tolerance_mm']
+
+        # NS / γ
+        target_ns_mm = self._gamma_to_mm(target_gamma)
+        current_ns_mm = self.ns_hall.get_position_mm()
+        delta_ns_mm = (target_ns_mm - current_ns_mm) * cfg['ns_extend_dir']
+        if abs(delta_ns_mm) > min_mm:
+            direction = +1 if delta_ns_mm > 0 else -1
+            action_txt = '往南 extend' if direction > 0 else '往北 retract'
+            ns_pins = (cfg['ns_brown_high'], cfg['ns_blue_high'],
+                       cfg['ns_brown_low'],  cfg['ns_blue_low'])
+            logger.info("NS 閉迴路 %s: %.1f → %.1f mm (Δ%+.1fmm, γ→%.1f°)",
+                        action_txt, current_ns_mm, target_ns_mm,
+                        delta_ns_mm, target_gamma)
+            stats = self._drive_until_target(ns_pins, self.ns_hall,
+                                             target_ns_mm, direction,
+                                             timeout, tol)
+            logger.info("  NS 完成 final=%.1fmm Δreal=%+.1fmm t=%.2fs",
+                        stats['final_mm'], stats['actual_delta'],
+                        stats['duration'])
+
+        # EW / ζ
+        target_ew_mm = self._zeta_to_mm(target_zeta)
+        current_ew_mm = self.ew_hall.get_position_mm()
+        delta_ew_mm = (target_ew_mm - current_ew_mm) * cfg['ew_extend_dir']
+        if abs(delta_ew_mm) > min_mm:
+            direction = +1 if delta_ew_mm > 0 else -1
+            action_txt = '往西 extend' if direction > 0 else '往東 retract'
+            ew_pins = (cfg['ew_brown_high'], cfg['ew_blue_high'],
+                       cfg['ew_brown_low'],  cfg['ew_blue_low'])
+            logger.info("EW 閉迴路 %s: %.1f → %.1f mm (Δ%+.1fmm, ζ→%.1f°)",
+                        action_txt, current_ew_mm, target_ew_mm,
+                        delta_ew_mm, target_zeta)
+            stats = self._drive_until_target(ew_pins, self.ew_hall,
+                                             target_ew_mm, direction,
+                                             timeout, tol)
+            logger.info("  EW 完成 final=%.1fmm Δreal=%+.1fmm t=%.2fs",
+                        stats['final_mm'], stats['actual_delta'],
+                        stats['duration'])
+
+    def _move_open_loop(self, target_gamma: float, target_zeta: float):
+        """fallback:開迴路時間驅動 = 角度差 × sec_per_deg"""
+        cfg = CONFIG['actuator']
+        d_gamma = (target_gamma - self.gamma) * cfg['ns_extend_dir']
+        d_zeta  = (target_zeta  - self.zeta)  * cfg['ew_extend_dir']
+        min_d   = cfg['min_move_deg']
+        max_t   = cfg['max_move_sec']
+
+        if abs(d_gamma) > min_d:
+            t = min(abs(d_gamma) * cfg['ns_sec_per_deg'], max_t)
+            action = 'extend' if d_gamma > 0 else 'retract'
+            direction_txt = '南' if action == 'extend' else '北'
+            ns_pins = (cfg['ns_brown_high'], cfg['ns_blue_high'],
+                       cfg['ns_brown_low'],  cfg['ns_blue_low'])
+            logger.info("NS 推桿 %s(往%s)%.2f 秒 (Δγ=%+.2f°)",
+                        action, direction_txt, t, d_gamma)
+            self._drive_pins(ns_pins, action, t)
+
+        if abs(d_zeta) > min_d:
+            t = min(abs(d_zeta) * cfg['ew_sec_per_deg'], max_t)
+            action = 'extend' if d_zeta > 0 else 'retract'
+            direction_txt = '西' if action == 'extend' else '東'
+            ew_pins = (cfg['ew_brown_high'], cfg['ew_blue_high'],
+                       cfg['ew_brown_low'],  cfg['ew_blue_low'])
+            logger.info("EW 推桿 %s(往%s)%.2f 秒 (Δζ=%+.2f°)",
+                        action, direction_txt, t, d_zeta)
+            self._drive_pins(ew_pins, action, t)
 
 
 # ════════════════════════════════════════════════════════════════
@@ -666,6 +1124,27 @@ class ANFISTrackingController:
             logger.info("感測器：照度=%.1f W/m²  功率=%.2fW  β=%.1f° φ=%.1f°",
                         illumination, current_power, cur_beta, cur_phi)
 
+            # ── ★ 太陽時間檢查(2026-07-14 修:移到決策之前)────────
+            # 非白天:只記錄不移動,第一次進夜間才回歸初始位置一次
+            if not self._is_sun_time(now):
+                if not getattr(self, '_night_mode', False):
+                    logger.info("進入非太陽時間(%d:00~%d:00),回歸初始位置一次",
+                                CONFIG['sun_start_hour'], CONFIG['sun_end_hour'])
+                    self.actuator.return_to_initial()
+                    self._night_mode = True
+                logger.info("非太陽時間,只記錄不移動")
+                self._upload_cycle_log(now, ldr_cal, illumination,
+                                       current_power,
+                                       self.actuator.beta, self.actuator.phi,
+                                       0.0, moved=False,
+                                       experience='night_idle')
+                time.sleep(CONFIG['interval_seconds'])
+                continue
+            else:
+                if getattr(self, '_night_mode', False):
+                    logger.info("進入太陽時間,恢復追日決策")
+                self._night_mode = False
+
             # ── Step 2 & 3：ANFIS 格網掃描 + 系統性誤差迴圈 ────
             best_beta, best_phi, predicted_power = \
                 self._grid_search_best_angle(now, illumination)
@@ -747,11 +1226,7 @@ class ANFISTrackingController:
             self._wait_or_end(now)
 
     def _wait_or_end(self, now: datetime):
-        """等待間隔時間，或太陽時間結束時回歸初始位置"""
-        if not self._is_sun_time(now):
-            self.actuator.return_to_initial()
-            logger.info("太陽時間結束，回歸初始位置，等待 %d 秒",
-                        CONFIG['interval_seconds'])
+        """等待間隔時間。太陽時間結束的處理已提前到 run() 迴圈開頭,這裡只 sleep。"""
         time.sleep(CONFIG['interval_seconds'])
 
     def _upload_cycle_log(self, now: datetime,
@@ -783,7 +1258,9 @@ class ANFISTrackingController:
             mppt = {'voltage': 0.0, 'current': 0.0, 'power': 0.0}
         except Exception as e:
             logger.warning("MPPT 讀取失敗: %s", e)
-            mppt = {'voltage': 0.0, 'current': 0.0, 'power': 0.0}
+            mppt = {'voltage': 0.0, 'current': 0.0, 'power': 0.0,
+                    'batt_voltage': 0.0, 'batt_current': 0.0, 'batt_power': 0.0,
+                    'batt_soc': None}
 
         payload = {
             'system':                 CONFIG['system_id'],   # Django serializer 必填欄位名為 'system'
@@ -792,14 +1269,31 @@ class ANFISTrackingController:
             'voltage':                mppt['voltage'],
             'current':                mppt['current'],
             'power_output':           mppt['power'],
-            # 光照強度（四 LDR 校正平均，W/m²）
+            # 電池端讀值(2026-06-23 補,真實判斷 MPPT 是否在 float 模式的依據)
+            'battery_voltage':        mppt.get('batt_voltage', 0.0),
+            'battery_current':        mppt.get('batt_current', 0.0),
+            'battery_power':          mppt.get('batt_power', 0.0),
+            'battery_soc':            mppt.get('batt_soc'),  # 0x311A,0-100%
+            # 光照強度(四 LDR 校正平均,W/m² 或 lux)
             'light_intensity':        round(illumination, 1),
+            # 四方位獨立讀值(2026-07-15 改成 raw ADC 0-1023,對照組差動 + ANFIS 訓練可用)
+            # ldr_cal 是「raw × slope」,反除 slope 拿回 raw ADC 給 dashboard 顯示;
+            # ANFIS 決策層仍用 ldr_cal 不受影響
+            'light_north':            round(ldr_cal.get('north', 0.0) / CONFIG['ldr_calibration']['north']['slope'], 1),
+            'light_east':             round(ldr_cal.get('east',  0.0) / CONFIG['ldr_calibration']['east']['slope'],  1),
+            'light_west':             round(ldr_cal.get('west',  0.0) / CONFIG['ldr_calibration']['west']['slope'],  1),
+            'light_south':            round(ldr_cal.get('south', 0.0) / CONFIG['ldr_calibration']['south']['slope'], 1),
             # 面板角度（傾角方位角系統）
             'panel_tilt':             round(self.actuator.beta, 2),
             'panel_azimuth':          round(self.actuator.phi,  2),
             # 推桿角度（tip-tilt 系統）
             'ns_actuator_angle':      round(self.actuator.gamma, 2),
             'ew_actuator_angle':      round(self.actuator.zeta,  2),
+            # 推桿真實伸展長度(mm)— 來自霍爾感測器,若 hall 未啟用則 null
+            'ns_actuator_extension':  (round(self.actuator.get_ns_position_mm(), 1)
+                                       if self.actuator.get_ns_position_mm() is not None else None),
+            'ew_actuator_extension':  (round(self.actuator.get_ew_position_mm(), 1)
+                                       if self.actuator.get_ew_position_mm() is not None else None),
             # INA3221 CH1 推桿電力
             'actuator_total_voltage': ina_act['voltage'],
             'actuator_total_current': ina_act['current'],

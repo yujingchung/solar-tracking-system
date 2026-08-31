@@ -3,6 +3,9 @@
 """
 anfis_inference.py
 ==================
+【狀態：v5 升級模組，尚未整合進生產部署。詳見 raspberry-pi/INTEGRATION_STATUS.md】
+生產部署目前用 deploy/ 的 V2 控制器；本模組為下一階段 v5 升級用。
+
 ANFIS v5/v6/v8 推論模組（為控制器封裝）
 
 提供統一 API：給定 timestamp + 候選角度集合 + 當前照度 (GHI)，

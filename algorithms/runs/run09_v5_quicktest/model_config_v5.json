@@ -1,6 +1,6 @@
 {
   "model_version": "v5",
-  "target": "PR_norm = power_W / (theoretical_poa × 1.948 × 0.208)",
+  "target": "PR_norm = power_W / (theoretical_poa * 1.948 * 0.208)",
   "feature_columns": [
     "hour_sin",
     "hour_cos",
@@ -21,46 +21,132 @@
   "site_lon": 121.43,
   "poa_min": 50.0,
   "split_method": "timestamp_aware (GroupShuffleSplit)",
-  "training_date": "2026-05-14 06:28:10",
+  "training_date": "2026-05-21 10:05:05",
   "performance_watts": {
-    "rmse": 50.20133980466869,
-    "mae": 40.57706320457469,
-    "r2": 0.6481072011563788,
-    "mape": 67.77305646356697,
+    "rmse": 51.29563181024242,
+    "mae": 41.70473569326579,
+    "r2": 0.6325988340010614,
+    "mape": 69.49742624956217,
     "by_range": {
       "0-100W": {
         "n": 2029,
-        "mae": 37.90490111214113,
-        "r2": -2.474238606047354
+        "mae": 37.2028412005161,
+        "r2": -2.257309492835228
       },
       "100-200W": {
         "n": 1085,
-        "mae": 26.203343668156638,
-        "r2": -0.1931654152469564
+        "mae": 26.48534694059665,
+        "r2": -0.20335166756048162
       },
       "200-300W": {
         "n": 900,
-        "mae": 62.40310423994357,
-        "r2": -6.384752977665565
+        "mae": 68.5869382567334,
+        "r2": -7.671343987105633
       },
       ">300W": {
         "n": 19,
-        "mae": 112.88578166401109,
-        "r2": -139.6397285150931
+        "mae": 118.19938913085937,
+        "r2": -152.4173896853095
       }
     }
   },
   "performance_pr": {
-    "rmse": 0.15790217231378992,
-    "r2": 0.5012884140014648
+    "rmse": 0.16277307206861918,
+    "r2": 0.4700457453727722
   },
   "ranking_mode_a": {
     "n_timestamps": 1185,
     "avg_n_panels": 2.659915611814346,
-    "top1_accuracy": 0.5991561181434599,
-    "power_gap_mean": 6.086861464978903,
+    "top1_accuracy": 0.619409282700422,
+    "power_gap_mean": 5.2161228814345995,
     "power_gap_median": 0.0,
-    "spearman_mean": 0.3743603411513859
+    "spearman_mean": 0.4023987206823027
+  },
+  "ranking_mode_a_timeseg": {
+    "6-7": {
+      "n_timestamps": 56,
+      "top1_accuracy": 0.5714285714285714,
+      "power_gap_mean": 2.8893295446428575,
+      "power_gap_median": 0.0,
+      "spearman_mean": 0.28076923076923077
+    },
+    "7-8": {
+      "n_timestamps": 84,
+      "top1_accuracy": 0.7261904761904762,
+      "power_gap_mean": 4.415199488095238,
+      "power_gap_median": 0.0,
+      "spearman_mean": 0.5374149659863945
+    },
+    "8-9": {
+      "n_timestamps": 94,
+      "top1_accuracy": 0.7021276595744681,
+      "power_gap_mean": 2.5706249787234046,
+      "power_gap_median": 0.0,
+      "spearman_mean": 0.6282608695652173
+    },
+    "9-10": {
+      "n_timestamps": 107,
+      "top1_accuracy": 0.6074766355140186,
+      "power_gap_mean": 4.609120037383178,
+      "power_gap_median": 0.0,
+      "spearman_mean": 0.2917582417582417
+    },
+    "10-11": {
+      "n_timestamps": 112,
+      "top1_accuracy": 0.625,
+      "power_gap_mean": 4.77025809375,
+      "power_gap_median": 0.0,
+      "spearman_mean": 0.41216931216931213
+    },
+    "11-12": {
+      "n_timestamps": 97,
+      "top1_accuracy": 0.5257731958762887,
+      "power_gap_mean": 8.534660092783504,
+      "power_gap_median": 0.0,
+      "spearman_mean": 0.21090225563909773
+    },
+    "12-13": {
+      "n_timestamps": 96,
+      "top1_accuracy": 0.5208333333333334,
+      "power_gap_mean": 11.494482520833335,
+      "power_gap_median": 0.0,
+      "spearman_mean": 0.26317460317460317
+    },
+    "13-14": {
+      "n_timestamps": 108,
+      "top1_accuracy": 0.5185185185185185,
+      "power_gap_mean": 6.5179901851851865,
+      "power_gap_median": 0.0,
+      "spearman_mean": 0.20784313725490194
+    },
+    "14-15": {
+      "n_timestamps": 131,
+      "top1_accuracy": 0.6335877862595419,
+      "power_gap_mean": 5.608194122137406,
+      "power_gap_median": 0.0,
+      "spearman_mean": 0.45848214285714284
+    },
+    "15-16": {
+      "n_timestamps": 109,
+      "top1_accuracy": 0.6055045871559633,
+      "power_gap_mean": 7.146770133027523,
+      "power_gap_median": 0.0,
+      "spearman_mean": 0.42199999999999993
+    },
+    "16-17": {
+      "n_timestamps": 104,
+      "top1_accuracy": 0.8076923076923077,
+      "power_gap_mean": 1.2921853653846158,
+      "power_gap_median": 0.0,
+      "spearman_mean": 0.7926267281105991
+    },
+    "17-18": {
+      "n_timestamps": 72,
+      "top1_accuracy": 0.625,
+      "power_gap_mean": 1.215304284722222,
+      "power_gap_median": 0.0,
+      "spearman_mean": 0.3931216931216931
+    }
   },
   "ranking_mode_b": {
     "n_timestamps": 1000,
@@ -75,12 +161,12 @@
       215,
       10
     ],
-    "pred_best_mean": 77.21963500976562,
+    "pred_best_mean": 74.292236328125,
     "true_max12_mean": 124.330358956,
-    "gain_mean": -47.11072692861238,
-    "gain_pct": -37.89157155516994,
-    "in_dataset_range_pct": 10.7,
-    "best_tilt_mean": 18.3,
-    "best_azi_mean": 182.55
+    "gain_mean": -50.038124974778086,
+    "gain_pct": -40.246103522058014,
+    "in_dataset_range_pct": 7.000000000000001,
+    "best_tilt_mean": 16.275,
+    "best_azi_mean": 177.36
   }
 }
