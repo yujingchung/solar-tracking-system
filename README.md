@@ -1,49 +1,63 @@
 # 太陽能追日系統 (Solar Tracking System)
 
 基於 ANFIS 演算法的智慧雙軸太陽能追日系統——碩士論文研究專案。
-**實驗場域**：新北市 ｜ **研究者**：鐘宇靖
+**實驗場域**：先鋒 金土地公廟（25.10°N, 121.43°E）｜ **研究者**：鐘宇靖 ｜ 指導教授：陳玉彬 教授
 
 ---
 
 ## 專案概述
 
-設計實驗組（ANFIS 智慧追日）與對照組（傳統 LDR 差值追日）的雙組別實驗，比較兩種追日策略的發電效益。
+設計實驗組（ANFIS 智慧追日）與對照組（傳統 LDR 差值追日）的雙組別實驗，比較兩種追日策略的發電效益；另以 24 片固定角度面板（傾角 10°/15°/20°/30° × 方位角 160°/180°/200°，每組合 A/B 兩片）＋ 2 片備用，作為 ANFIS 模型的訓練資料來源與對照基準。
 
-| 組別 | 追日方式 | System ID | 控制程式 |
-|------|----------|-----------|----------|
-| 實驗組 I & II | ANFIS 智慧追日 | 1, 2 | `anfis_controller.py` |
-| 對照組 I & II | 傳統 LDR 差值追日 | 3, 4 | `traditional_controller.py` |
+### 四套追日系統（2026-09 現況：全數上線）
 
-另有 28 片固定角度參考面板（傾角 10°/15°/20°/30° × 方位角 160°/180°/200°）作為對照基準。
+| 組別 | 追日方式 | system_id | Pi 主機名 | Tailscale IP | SSH 帳號 | 程式資料夾 | 上傳間隔 |
+|------|----------|-----------|-----------|--------------|----------|------------|----------|
+| 實驗組 I | ANFIS | 4 | raspberrypi-v4 | 100.79.66.68 | raspberrypi | `anfis_1` | 10 分鐘 |
+| 實驗組 II | ANFIS | 2 | raspberrypi-1 | 100.66.182.46 | rte | `anfis_2` | 5 分鐘 |
+| 對照組 I | LDR 差值 | 6 | raspberrypi | 100.96.31.110 | raspberrypi | `traditional_1` | 10 分鐘 |
+| 對照組 II | LDR 差值 | 7 | raspberrypi-v3 | 100.126.13.120 | raspberrypi | `traditional_2` | 5 分鐘 |
 
 ---
 
 ## 系統架構
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  樹莓派（×4 台）                                         │
-│  ├─ MCP3008 SPI：4 方向光敏電阻（東/西/南/北）          │
-│  ├─ INA3221 I2C（0x40）：推桿電力(CH1)＋Pi電力(CH2)   │
-│  ├─ RS485→USB：MPPT 控制器（太陽能板 V/I）             │
-│  └─ 雙軸線性推桿（霍爾感測器閉迴路回授）               │
-└────────────────┬────────────────────────────────────────┘
-                 │ HTTPS（Tailscale Funnel）
-┌────────────────▼────────────────────────────────────────┐
-│  Django 後端（Docker）                                   │
-│  ├─ REST API：/api/power-records/                       │
-│  ├─ 固定面板 CSV API（49 MB，pandas 記憶體載入）        │
-│  └─ Z3A IoT 雲端 API 代理                              │
-└────────────────┬────────────────────────────────────────┘
-                 │
-┌────────────────▼────────────────────────────────────────┐
-│  儀表板前端（dashboard.html，單一檔案）                  │
-│  ├─ 系統總覽：各組即時功率                              │
-│  ├─ 功率曲線：各系統時序圖表                           │
-│  ├─ 固定式面板發電分析：CSV 查詢 ＋ 照度疊加圖        │
-│  └─ Z3A 採集：IoT 雲端即時 V/I/P                      │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  樹莓派（×4 台，systemd 服務 solar_tracking.service）        │
+│  ├─ MCP3008 SPI：4 方位光敏電阻（東/西/南/北，ADC 0-1023）  │
+│  ├─ INA3221 I2C（0x40）：推桿電力＋Pi 電力（通道對應見下）  │
+│  ├─ LX08A USB-RS232：MW PV-ML24-40 MPPT（9600 bps, fc03）  │
+│  ├─ H 橋繼電器 ×8（GPIO 驅動 24V 雙軸推桿）                │
+│  └─ 霍爾位置回授（54.19 pulse/mm；homing 歸零＋EMI gating）│
+└────────────────┬─────────────────────────────────────────────┘
+                 │ REST（Tailscale VPN）
+┌────────────────▼─────────────────────────────────────────────┐
+│  Django 後端（Docker：solar_db / solar_backend / tailscale） │
+│  ├─ REST API：/api/power-records/ 等                        │
+│  ├─ 固定面板 CSV API（49 MB pandas 記憶體載入＋mtime 快取） │
+│  └─ Z3A IoT 雲端 API 代理（token 機制見 Z3A_TOKEN_SOP.md）  │
+└────────────────┬─────────────────────────────────────────────┘
+                 │ Tailscale Funnel HTTPS
+┌────────────────▼─────────────────────────────────────────────┐
+│  儀表板（backend/static/dashboard.html，單一檔案，7 頁籤）   │
+│  總覽｜固定面板研究｜CSV 進階分析｜即時監控｜發電比較｜      │
+│  Z3A 採集｜下載中心                                          │
+└──────────────────────────────────────────────────────────────┘
 ```
+
+### 硬體重點（2026-08/09 更新）
+
+- **MPPT**：2026-08-21 全數由 EPEVER Tracer-AN（20 A，RS485/115200/fc04）換裝為**明緯 PV-ML24-40**（40 A，RS232 RJ12/9600/fc03，SRNE ML2440 貼牌），解除晴天正午 ≈296 W 削頂。RJ12 ⑤⑥ 為電源腳**絕不可接**（會與 Pi USB 5V 倒灌造成掉電）。
+- **霍爾回授**：全系統具 homing 歸零（開機首次移動前＋每晚回歸前全收歸零）與 EMI gating（僅計數當前驅動軸），行程-角度換算依論文表 4.1 三點分段線性。
+- **INA3221 通道對應（各台不同，維修必讀）**：
+
+| 系統 | I2C bus | 推桿 | 樹莓派 | 備註 |
+|------|---------|------|--------|------|
+| 實驗組 I | 1（硬體） | CH3 | CH2 | CH1 通道燒毀停用 |
+| 實驗組 II | 3（軟體 I2C，GPIO20/21） | CH1 | CH3 | GPIO2/3 損壞，dtoverlay i2c-gpio |
+| 對照組 I | 1（硬體） | CH1 | CH2 | 標準接法 |
+| 對照組 II | 1（硬體） | CH1 | CH2 | 標準接法 |
 
 ---
 
@@ -51,115 +65,54 @@
 
 ```
 solar-tracking-dashboard/
-├── backend/
-│   ├── dashboard/
-│   │   ├── models.py             # SystemGroup, PowerRecord
-│   │   ├── views.py              # REST API viewsets
-│   │   ├── serializers.py        # RealTimeDataSerializer
-│   │   ├── fixed_panel_api.py    # 固定面板 CSV 查詢 API
-│   │   └── z3a_api.py            # Z3A IoT 雲端 API 代理
-│   ├── static/dashboard.html     # 單一檔案前端（~1500 行）
-│   └── requirements.txt
-├── data/
-│   └── combined_solar_data_20250301_20260406_processed.csv  # 49 MB 主資料集
-├── algorithms/
-│   ├── solar_anfis_model_v2.py   # ANFIS 模型（存 .keras 格式）
-│   ├── train_pipeline.py         # 一鍵訓練啟動器
-│   ├── datasets/                 # 預處理資料集（dsXX_YYYYMMDD_desc/）
-│   ├── runs/                     # 訓練輸出（runXX_dsXX_desc/）
-│   ├── datapreprocessor/
-│   │   └── data preprocessor.py # SimpleSolarPreprocessor
-│   └── coordinate_conversion/   # (β,φ) ⇄ (γ,ζ) 座標轉換工具
-├── fixed_data_process_visualization/  # 固定面板資料六步驟處理管線
-│   ├── solar_data_pipeline.py    # Tkinter GUI 入口
-│   └── 使用手冊.md
+├── backend/                      # Django 後端（Docker）
+│   ├── dashboard/                # models / views / fixed_panel_api / z3a_api
+│   └── static/dashboard.html     # 儀表板前端（單一檔案）＋ theme.css
+├── data/                         # 主資料集 CSV（49 MB）
+├── algorithms/                   # ANFIS 訓練管線
+│   ├── solar_anfis_model_v2.py   # 模型主程式
+│   ├── train_pipeline.py         # 一鍵訓練（datasets/ 與 runs/ 管理）
+│   ├── datapreprocessor/         # SimpleSolarPreprocessor
+│   ├── coordinate_conversion/    # (β,φ) ⇄ (γ,ζ) 轉換
+│   └── flowcharts/               # 控制流程圖 PDF
+├── fixed_data_process_visualization/  # 固定面板五步前處理管線（Tkinter GUI）
 ├── raspberry-pi/
-│   ├── src/controllers/
-│   │   ├── anfis_controller.py        # 實驗組控制器
-│   │   └── traditional_controller.py  # 對照組控制器
-│   └── deploy/solar_tracking/         # 可直接部署的四個資料夾
-│       ├── 實驗組1/   (system_id=1)
-│       ├── 實驗組2/   (system_id=2)
-│       ├── 對照組1/   (system_id=3)
-│       └── 對照組2/   (system_id=4)
-├── algorithms/flowcharts/        # 實驗/對照組流程圖 PDF
-├── z3a_collect.py                # Z3A 歷史資料抓取 ＋ CSV 合併
-├── docker-compose-dev.yml
-└── .env.dev                      # 金鑰/Token — 不進版控
+│   ├── config/                   # 各系統 config
+│   ├── src/controllers/          # anfis_controller / traditional_controller
+│   └── deploy/                   # 各現場機台程式快照
+├── docs/                         # 設計知識庫、手冊
+├── z3a_collect.py                # Z3A 雲端抓取＋CSV 合併
+├── solar_weekly_run.ps1          # 週運維（Task Scheduler 每週一 02:00）
+└── docker-compose-dev.yml
 ```
 
 ---
 
 ## 快速開始
 
-### Docker（從專案根目錄執行）
-
 ```bash
-docker-compose -f docker-compose-dev.yml up -d        # 啟動
-docker-compose -f docker-compose-dev.yml down          # 停止
-docker-compose -f docker-compose-dev.yml up -d --build # 重新建構
+# 於專案根目錄（Windows 主機）
+docker-compose -f docker-compose-dev.yml up -d
+# 儀表板：http://localhost:8000/dashboard/
+# 公網：https://solar-dashboard.tail7c1eb9.ts.net/dashboard/
 ```
 
-| 網址 | 說明 |
-|------|------|
-| `http://localhost:8000/dashboard/` | 本機儀表板 |
-| `https://solar-dashboard.tail7c1eb9.ts.net/dashboard/` | 公開網址（Tailscale） |
-
-> ⚠️ 啟動 Docker 前請關閉 **Fiddler**——其 HTTPS 解密會導致 Tailscale 容器 TLS 驗證失敗。
-
-### 除錯指令
-
-```bash
-docker logs solar_backend --tail 50
-docker exec -it solar_backend bash
-```
+注意：開啟 Fiddler 的 HTTPS 解密會破壞 Tailscale 容器 TLS，啟動前請先關閉；改動 `.env.dev` 後需 `up -d --force-recreate backend` 才會重讀。
 
 ---
 
 ## 樹莓派部署
 
-四台 Pi 各自運行一個控制器，程式位於 `raspberry-pi/deploy/solar_tracking/`。
-
-### 每台 Pi 硬體配置
-
-| 硬體 | 功能 |
-|------|------|
-| MCP3008（SPI） | 四方向光敏電阻：CH0=東, CH1=西, CH2=南, CH3=北 |
-| INA3221（I2C 0x40） | CH1=推桿電力（雙軸合計）, CH2=Pi 本身電力 |
-| RS485→USB | MPPT 控制器：太陽能板電壓/電流 |
-| 雙軸線性推桿 | 霍爾感測器回授，閉迴路定位 |
-
-### 部署步驟
-
 ```bash
-# 1. 複製資料夾到 Pi
-scp -r 實驗組1/ pi@<PI_IP>:/home/pi/solar_tracking/
-
-# 2. 安裝套件
-pip3 install -r requirements.txt
-
-# 3.（僅實驗組）將模型檔案放入 models/ 資料夾
-#    anfis_with_illumination.keras
-#    scaler_X_with_illumination.save
-#    model_config_with_illumination.json
-
-# 4. 硬體就緒後將 CONFIG 中 simulation_mode 改為 False
-
-# 5. 手動測試
-bash start.sh
-
-# 6. 設定開機自動啟動
-sudo cp solar_tracking.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable solar_tracking
-sudo systemctl start solar_tracking
+# 1. 複製對應資料夾到 Pi（見上方四系統表）
+# 2. 建立 venv 並安裝套件（實驗組需 TensorFlow/sklearn）
+# 3.（僅實驗組）放入模型檔：anfis_with_illumination.keras、scaler、config
+# 4. 確認 CONFIG：system_id、MPPT baud=9600、INA 通道對應（見上表）
+# 5. 手動測試：python3 <controller>.py
+# 6. systemd 自啟：sudo systemctl enable --now solar_tracking.service
 ```
 
-### 座標系統
-
-- **Tip-tilt**：γ 南北（±30°，+北/−南），ζ 東西（±30°，+東/−西）
-- **傾角方位角**：β（傾角 0–41.4°），φ（方位角 0–360°）
-- 轉換函式：`tiptilt_to_azalt(γ, ζ) → (β, φ)`，定義於 `anfis_controller.py`
+任何手動測試腳本要操作 GPIO 或 /dev/ttyUSB0 前，先 `sudo systemctl stop solar_tracking.service`，測完再 start。
 
 ---
 
@@ -167,81 +120,45 @@ sudo systemctl start solar_tracking
 
 ```bash
 cd algorithms/
-python train_pipeline.py                                   # 完整管線
-python train_pipeline.py --skip-preprocess                 # 僅訓練（使用最新資料集）
+python train_pipeline.py                              # 完整（前處理＋訓練）
 python train_pipeline.py --skip-preprocess --dataset ds02_20260506_含照度
 ```
 
-### 模型規格
-
-- **輸入特徵（9 維）**：`hour_sin/cos`、`day_sin/cos`、`tilt_sin/cos`、`azimuth_sin/cos`、`illumination`
-- **網路架構**：高斯隸屬函數層（7 MF/輸入）→ Dense(128→64→32→16→1) ＋ BatchNorm ＋ Dropout
-- **儲存格式**：`.keras`（h5py 在含中文字元的 Windows 路徑下會崩潰，不用 `.h5`）
-- **輸出目錄**：`algorithms/runs/runXX_dsXX_desc/`
-
-### 目前訓練結果（run04，ds02，含照度）
-
-| 指標 | 數值 |
-|------|------|
-| R²（整體） | 0.844 |
-| RMSE | 32.43 W |
-| MAE | 20.98 W |
-
-各角度區間 R² 均為負值 → 模型學到時間→功率的映射，尚未學會角度差異。
-**下一步**：加入 `theoretical_poa`、`solar_elevation` 特徵改善角度鑑別能力。
+模型：Gaussian MF（7 MFs/輸入，9 維特徵：時間/日期/角度 sin-cos ＋照度）→ Dense 128→64→32→16→1。儲存採 `.keras`（h5py 對中文路徑不相容）。評估含排名導向指標（Top-1 選擇率、次佳落差）。
 
 ---
 
-## API 端點
+## API 端點（節錄）
 
-**Base URL**：`/api/`
-
-| 端點 | 方法 | 說明 |
-|------|------|------|
-| `/api/power-records/` | GET/POST | PowerRecord CRUD — Pi 上傳目標 |
-| `/api/realtime-data/` | GET | 各系統最新資料 |
-| `/api/systems/` | GET/POST | SystemGroup CRUD |
-| `/api/fixed-panels/day-curve/` | GET | 固定面板每分鐘曲線 |
-| `/api/fixed-panels/panel-trend/` | GET | 長期面板趨勢 |
-| `/api/z3a/history/` | GET | Z3A 裝置歷史資料 |
-| `/api/z3a/devices/` | GET | Z3A 裝置清單 |
-
-**POST `/api/power-records/` 必填欄位**：`system_id`、`voltage`、`current`
+| Endpoint | 用途 |
+|----------|------|
+| `GET/POST /api/power-records/` | 追日系統即時紀錄 |
+| `GET /api/fixed-panels/kpi-summary/` | 固定面板研究 KPI（支援季節參數） |
+| `POST /api/fixed-panels/reload/` | 清快取重讀 CSV |
+| `GET /api/z3a/history/` | Z3A 雲端歷史查詢 |
 
 ---
 
-## 主資料集
+## 例行維運
 
-`data/combined_solar_data_20250301_20260406_processed.csv`（49 MB）
-- **時間範圍**：2025-03-01 至 2026-04-06 ｜**間隔**：10 分鐘 ｜**時區**：Asia/Taipei
-- **主要欄位**：`timestamp`、`tilt_angle`、`azimuth_angle`、`panel_id`、`voltage_V`、`current_A`、`power_W`、`solar_elevation`、`theoretical_poa`、`ghi`、`illumination`
-
----
-
-## 待辦事項
-
-| 項目 | 優先度 |
-|------|--------|
-| 確認 MPPT 通訊協定（Modbus RTU 或自訂）→ 實作 `read_mppt_power()` | 高 |
-| 確認 GPIO 接線 → 實作 `_drive_ew()` / `_drive_ns()` | 高 |
-| 建立霍爾感測器行程-角度對照表 → 實作 `_move_to_tiptilt()` | 高 |
-| 四顆 LDR 個別校正係數測量 | 高 |
-| 改善 ANFIS 角度鑑別能力（加入 `theoretical_poa` 等特徵） | 中 |
-| Z3A Token 於 2026-05-09 到期，需重新登入更新 `.env.dev` | 中 |
+- **每週一 02:00**：Windows Task Scheduler 跑 `solar_weekly_run.ps1`（健檢→token→抓取→reload），log 於 `logs/`。
+- **Z3A token**：約 78 天以 Fiddler 手動更新一次，SOP 見 `Z3A_TOKEN_SOP.md`。
+- **照度資料**：MongoDB Atlas 匯出後以 `merge_illumination_csv.py` 合併（處理假 UTC 時區）。
+- 完整硬體說明見《太陽能案場硬體系統架構手冊》；軟體操作見《使用手冊 v2.4》。
 
 ---
 
 ## 版本紀錄
 
-| 版本 | 日期 | 說明 |
-|------|------|------|
-| v0.4 | 2026-05 | 重寫 Pi 控制器、建立四組部署資料夾、加入 INA3221/MPPT、修正 API payload、CLAUDE.md 英文化 |
-| v0.3 | 2026-05 | ANFIS 訓練管線、照度資料整合、固定面板六步驟處理管線、Z3A 資料收集 |
-| v0.2 | 2025-09 | 主控制器架構、統一設定系統 |
-| v0.1 | 2025-03 | Django 後端初版、基本儀表板 |
+| 日期 | 內容 |
+|------|------|
+| 2026-09-06 | 40A MPPT（ML2440/RS232/9600）全面換裝與程式支援；霍爾 homing＋EMI gating；實II 軟體 I2C bus3；各台 INA 通道重對應；儀表板發電比較新增 β/φ 欄；backend 電池/SOC 欄位；四系統全數上線 |
+| 2026-06-26 | Z3A token 機制簡化（token2 直用，~78 天一次） |
+| 2026-05-15 | 儀表板 7 頁籤重寫；KPI API；週運維自動化 |
+| 2026-03 | 初版：雙組別追日＋固定面板資料管線 |
 
 ---
 
 ## 授權
 
-MIT License
+學術研究用途。
